@@ -1,5 +1,5 @@
 // 離線快取：先用網路拿最新版，沒網路時用快取（所以更新會自動生效，斷線也能打卡）
-const CACHE = 'chuanshun-v1.0.1';
+const CACHE = 'chuanshun-v1.0.2';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/store.js', 'js/defaults.js',
@@ -15,7 +15,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request).then((res) => {
+    // cache: 'no-cache' → 每次都向伺服器確認有沒有新版（GitHub Pages 預設讓瀏覽器快取 10 分鐘）
+    fetch(e.request.url, { cache: 'no-cache' }).then((res) => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
       return res;
     }).catch(() => caches.match(e.request, { ignoreSearch: true }).then((r) => r || caches.match('index.html')))
