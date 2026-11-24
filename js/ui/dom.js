@@ -103,3 +103,79 @@ export function selectWithAdd(options, value, onChange, onAdd) {
   });
   return sel;
 }
+
+// ── 與 Android 版相同的輸入元件 ────────────────────────────────────
+
+/** 可輸入也可下拉選擇的欄位（對應 Android DropdownField）；輸入不存在的名稱會出現「新增 "xxx"」 */
+export function comboField(options, value, onChange, onAdd) {
+  let cur = value || '';
+  const input = h('input', { class: 'input combo-input', value: cur, placeholder: '請輸入或選擇...', autocomplete: 'off' });
+  const list = h('div', { class: 'combo-list', hidden: true });
+  const wrap = h('div', { class: 'combo' }, h('div', { class: 'combo-row' }, input,
+    h('button', { class: 'combo-arrow', type: 'button', tabindex: -1, 'aria-label': '展開', onclick: () => { if (list.hidden) { draw(''); open(); } else close(); } }, '▾')), list);
+  const open = () => { list.hidden = false; };
+  const close = () => { list.hidden = true; };
+  const pick = (v) => { cur = v; input.value = v; onChange(v); close(); };
+  function draw(filter) {
+    const f = filter.trim().toLowerCase();
+    const items = options.filter((o) => !f || o.toLowerCase().includes(f));
+    list.replaceChildren(...items.map((o) => h('button', { type: 'button', class: 'combo-item' + (o === cur ? ' on' : ''), onmousedown: (e) => e.preventDefault(), onclick: () => pick(o) }, o)));
+    const typed = filter.trim();
+    if (onAdd && typed && !options.includes(typed)) {
+      list.append(h('button', { type: 'button', class: 'combo-item add', onmousedown: (e) => e.preventDefault(), onclick: () => { onAdd(typed); options = [...options, typed]; pick(typed); } }, `＋ 新增 "${typed}"`));
+    }
+    if (!list.childElementCount) list.append(h('div', { class: 'combo-empty' }, '沒有符合的項目'));
+  }
+  input.addEventListener('focus', () => { draw(''); open(); });
+  input.addEventListener('input', () => { cur = input.value; onChange(cur); draw(input.value); open(); });
+  input.addEventListener('blur', () => setTimeout(close, 150));
+  return wrap;
+}
+
+/** 核取方塊＋文字 */
+export function checkRow(label, checked, onChange, extraClass = '') {
+  return h('label', { class: 'check ' + extraClass }, h('input', { type: 'checkbox', checked, onchange: (e) => onChange(e.target.checked) }), h('span', {}, label));
+}
+
+/** 橫向計步器（對應 Android RowStepperField）：標籤 − 數字 ＋ */
+export function rowStepper(label, value, onChange) {
+  return h('div', { class: 'row-stepper' }, h('span', { class: 'rs-label' }, label), stepper(value, onChange));
+}
+
+/** 直向計步器（對應 Android StepperField：標籤在上、數字有框） */
+export function columnStepper(label, value, onChange) {
+  const out = h('span', { class: 'cs-val' }, value);
+  const set = (v) => { v = Math.max(0, v); out.textContent = v; onChange(v); };
+  return h('div', { class: 'col-stepper' }, h('span', { class: 'cs-label' }, label),
+    h('div', { class: 'cs-row' },
+      h('button', { class: 'icon-btn small', type: 'button', 'aria-label': '減少', onclick: () => set(Number(out.textContent) - 1) }, '−'), out,
+      h('button', { class: 'icon-btn small', type: 'button', 'aria-label': '增加', onclick: () => set(Number(out.textContent) + 1) }, '＋')));
+}
+
+/** 頁首標題列（對應 Android TopAppBar） */
+export function appBar(title, ...actions) {
+  return h('header', { class: 'appbar' }, h('h1', {}, title), h('div', { class: 'appbar-actions' }, actions));
+}
+
+/** 可摺疊區塊（對應 Android SettingSection） */
+export function section(title, open, ...content) {
+  return h('details', { class: 'card section', open }, h('summary', {}, h('span', {}, title)), h('div', { class: 'section-body' }, content));
+}
+
+/** 選項文字顏色（#FFFFFF／#000000 視為未設定） */
+export function optionColor(state, key, name, fallback = '') {
+  const c = (state.settings[key] || []).find((o) => o.name === name)?.colorHex;
+  return c && !/^#?(ffffff)$/i.test(c) ? c : fallback;
+}
+
+/** 時間輸入：只收 4 位數字，顯示為 HH:mm（對應 Android TimeVisualTransformation） */
+export function timeInput(value, onInput, placeholder = 'HH:mm') {
+  const fmt = (d) => (d.length > 2 ? d.slice(0, 2) + ':' + d.slice(2) : d);
+  const el = h('input', { class: 'input', inputmode: 'numeric', placeholder, value: fmt(value || '') });
+  el.addEventListener('input', () => {
+    const d = el.value.replace(/\D/g, '').slice(0, 4);
+    el.value = fmt(d); onInput(d);
+    if (d.length === 4) { const next = el.closest('.form')?.querySelectorAll('input')?.[[...el.closest('.form').querySelectorAll('input')].indexOf(el) + 1]; if (next && next.type !== 'checkbox') next.focus(); }
+  });
+  return el;
+}

@@ -1,5 +1,5 @@
 // 統計：月／年摘要、每日工時圖、分類統計、薪資明細、勞基法試算、匯出對帳單
-import { h, openDialog, promptDialog, money, toast } from './dom.js';
+import { h, openDialog, promptDialog, money, toast, appBar } from './dom.js';
 import { billingRange, billingRangeStr, billingMonthOf, effectiveEndDay } from '../core/billing.js';
 import { addMonths, monthKey, todayEpochDay, fmtDuration, ymdOf, fmtDate, weekdayLabel } from '../core/date.js';
 import { workMinutes, isDraft, splitToDaySegments } from '../core/shift.js';
@@ -12,8 +12,7 @@ import { saveFile } from './files.js';
 export function renderStats(ctx) {
   const v = ctx.view.stats ||= { mode: 'MONTH', ...billingMonthOf(todayEpochDay(), ctx.state.settings.billingStartDaysMap, ctx.state.settings.billingStartDay), year: ymdOf(todayEpochDay()).y };
   const hidden = !!ctx.state.meta?.salaryHidden;
-  const head = h('div', { class: 'row-between' },
-    h('h1', { class: 'page-title' }, '統計'),
+  const head = appBar('統計',
     h('button', { class: 'icon-btn', type: 'button', title: hidden ? '顯示金額' : '隱藏金額', onclick: () => ctx.mutate((s) => { s.meta = { ...s.meta, salaryHidden: !hidden }; }) }, hidden ? '🙈' : '👁️'));
   const modeBar = h('div', { class: 'seg center-seg' },
     ['MONTH', 'YEAR'].map((m) => h('button', { type: 'button', class: 'seg-btn' + (v.mode === m ? ' on' : ''), onclick: () => { v.mode = m; ctx.render(); } }, m === 'MONTH' ? '按月檢視' : '按年檢視')));

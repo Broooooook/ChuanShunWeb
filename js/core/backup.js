@@ -5,12 +5,21 @@ export const DEFAULT_COLORS = {
   color3xOvertime: '#FFDAD6', color2xOvertime: '#FFD8E4', colorOffDay: '#C2E7FF', colorOfficial: '#E3F2FD', colorSpecActive: '#E8F5E9',
 };
 
+/** 預設獎金基數（與 Android 版預設相同）：每趟 400、每次夜點 300 */
+export const DEFAULT_RATES = { tripBonusRate: 400, nightShiftBonusRate: 300 };
+/** 兩個獎金基數都是 0（從沒設定過）時，套用預設值 */
+export function applyDefaultRates(settings) {
+  const si = settings.salaryInfo || {};
+  if (!si.tripBonusRate && !si.nightShiftBonusRate) settings.salaryInfo = { ...emptySalary(), ...si, ...DEFAULT_RATES };
+  return settings;
+}
+
 export function defaultSettings() {
   return {
     defaultDriver: '', defaultDestination: '', defaultAcidType: '',
     destinations: [], acidTypes: [], drivers: [],
     billingStartDay: 26, billingStartDaysMap: {}, resetAfterPunchOut: false,
-    totalSpecialLeave: 0, usedSpecialLeave: 0, salaryInfo: emptySalary(), ...DEFAULT_COLORS,
+    totalSpecialLeave: 0, usedSpecialLeave: 0, salaryInfo: { ...emptySalary(), ...DEFAULT_RATES }, ...DEFAULT_COLORS,
     // 以下為網頁版自己的設定（Android 匯入時會自動忽略）
     destinationTrips: {}, law: { breakMinutes: 60, dayMode: 'MARKS', includeBonus: true }, theme: 'LIGHT',
   };

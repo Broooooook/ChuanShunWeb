@@ -178,3 +178,12 @@ test('actions: 2X/3X 互斥、清除過期草稿', () => {
   s.workRecords.push({ id: 9, date: D(2026, 7, 1), trips: [], startTime: null, endTime: null });
   assert.equal(A.purgeStaleDrafts(s, at(2026, 7, 15, 9)), 1);
 });
+
+import { applyDefaultRates } from '../js/core/backup.js';
+test('預設獎金基數：沒設定過才套用 400/300', () => {
+  assert.deepEqual([defaultSettings().salaryInfo.tripBonusRate, defaultSettings().salaryInfo.nightShiftBonusRate], [400, 300]);
+  const a = applyDefaultRates({ salaryInfo: { tripBonusRate: 0, nightShiftBonusRate: 0, baseSalary: 5 } });
+  assert.deepEqual([a.salaryInfo.tripBonusRate, a.salaryInfo.nightShiftBonusRate, a.salaryInfo.baseSalary], [400, 300, 5]);
+  const b = applyDefaultRates({ salaryInfo: { tripBonusRate: 350, nightShiftBonusRate: 0 } });
+  assert.equal(b.salaryInfo.tripBonusRate, 350);
+});

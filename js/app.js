@@ -1,6 +1,6 @@
 import { h, toast, openDialog } from './ui/dom.js';
 import { loadState, saveState, requestPersist } from './store.js';
-import { defaultSettings, parseBackup } from './core/backup.js';
+import { defaultSettings, parseBackup, applyDefaultRates } from './core/backup.js';
 import { DEFAULT_OPTIONS } from './defaults.js';
 import { purgeStaleDrafts } from './core/actions.js';
 import { renderHome } from './ui/home.js';
@@ -8,7 +8,7 @@ import { renderHistory } from './ui/history.js';
 import { renderStats } from './ui/stats.js';
 import { renderSettings, exportBackup, pickBackupFile } from './ui/settings.js';
 
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.1.0';
 
 const TABS = [
   { id: 'home', label: '本日工作', icon: '🏠', render: renderHome },
@@ -108,6 +108,7 @@ function renderWelcome() {
     if (text == null) return;
     try {
       const st = parseBackup(text);
+      applyDefaultRates(st.settings);
       st.meta = { createdAt: Date.now(), lastBackupAt: Date.now() };
       ctx.state = st; await saveState(st); requestPersist(); render();
       toast(`已匯入 ${st.workRecords.length} 筆紀錄`);
@@ -127,7 +128,7 @@ function renderWelcome() {
 async function boot() {
   ctx.state = await loadState();
   if (ctx.state) {
-    ctx.state.settings = { ...defaultSettings(), ...ctx.state.settings };
+    ctx.state.settings = applyDefaultRates({ ...defaultSettings(), ...ctx.state.settings });
     ctx.state.meta = ctx.state.meta || {};
     if (purgeStaleDrafts(ctx.state)) await saveState(ctx.state);
     requestPersist();
