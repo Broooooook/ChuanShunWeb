@@ -76,7 +76,7 @@ function banners() {
 }
 
 export function showInstallGuide() {
-  const step = (n, text) => h('li', {}, h('b', {}, n + '. '), text);
+  const step = (n, text) => h('li', {}, text);
   const body = isIOS()
     ? h('div', {},
       h('p', {}, '在 iPhone 上一定要「加入主畫面」，從桌面圖示打開，資料才會一直保存。'),

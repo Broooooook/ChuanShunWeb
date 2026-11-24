@@ -63,7 +63,7 @@ export function renderHome(ctx) {
     h('div', { class: 'card-title' }, '今日統計'),
     line('累計工時', fmtDuration(mins)),
     line(h('span', {}, '累計車趟', h('small', { class: 'muted' }, ` (趟數+特殊)${mult > 1 ? '×' + mult : ''}+超時`)), fmtNum(total) + ' 趟'),
-    line('平均時/趟', avg ? h('span', { class: avg > 199 ? 'bad' : avg < 160 ? 'good' : '' }, fmtDuration(avg)) : '--:--'),
+    line('平均時/趟', total > 0 && r?.startTime != null ? h('span', { class: avg > 199 ? 'bad' : avg >= 1 && avg < 160 ? 'good' : '' }, fmtDuration(avg)) : '--:--'),
     line('夜點', `${r?.nightShiftCount || 0} 次`),
     h('hr'),
     line(h('b', {}, '今日預估獎金'), h('b', { class: 'accent big-num' }, salaryHidden ? 'NT$ ****' : money(bonus))));
