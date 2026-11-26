@@ -150,28 +150,30 @@ function laborCard(ctx, recs, sal, sum, hidden) {
       h('div', {}, h('div', { class: 'card-title' }, '⚖️ 勞基法加班費試算'), h('div', { class: 'small muted' }, '僅供參考，不計入上方薪資')),
       h('button', { class: 'btn small', type: 'button', onclick: () => lawSettings(ctx, law) }, '計算設定')));
   if (base <= 0) { card.append(h('p', {}, '請先在「薪資明細」填入本薪，才能估算時薪與加班費。')); return card; }
-  const r = Law.calculate(recs, base, law.breakMinutes, law.dayMode);
+  const r = Law.calculate(recs, base, law.breakMinutes, law.dayMode, ctx.state.workRecords);
   card.append(
     line('月薪基數', m$(base)), line('平日每小時工資額（÷240）', hidden ? 'NT$ ****' : 'NT$ ' + r.hourlyWage.toFixed(1)), h('hr'),
     ...[0, 1, 2].filter((k) => k === 0 || r.workedDaysOf(k) > 0).map((k) =>
       line(`${Law.DayKindLabel[k]}（${r.workedDaysOf(k)} 天，加班 ${r.overtimeHoursOf(k).toFixed(1)} 小時）`, m$(r.payOf(k)))),
     line(h('b', {}, '依法應得加班費合計'), h('b', { class: 'accent' }, m$(r.totalPay))),
     line('本月延長工時', `${r.totalOvertimeHours.toFixed(1)} 小時 / 上限 46 小時`));
-  if (r.exceedsMonthlyCap || r.daysOverDailyCap || r.belowMinimumWage) {
+  if (r.exceedsMonthlyCap || r.daysOverDailyCap || r.daysShortRest || r.belowMinimumWage) {
     card.append(h('div', { class: 'warn-box' }, h('b', {}, '⚠️ 超過法定上限'),
       r.exceedsMonthlyCap ? h('div', {}, '・本月延長工時超過 46 小時（第 32 條）') : null,
       r.daysOverDailyCap ? h('div', {}, `・有 ${r.daysOverDailyCap} 天工時超過 12 小時（第 32 條）`) : null,
+      r.daysShortRest ? h('div', {}, `・有 ${r.daysShortRest} 次兩班間隔不到 11 小時（第 34 條）`) : null,
       r.belowMinimumWage ? h('div', {}, '・月薪基數低於 2026 年最低工資 29,500 元') : null));
   }
   card.append(
     h('details', {}, h('summary', {}, '每日明細'),
-      r.days.filter((d) => d.pay > 0 || d.exceedsDailyCap).map((d) =>
-        line(`${fmtDate(d.date)} ${weekdayLabel(d.date)} ${Law.DayKindLabel[d.kind]} ${(d.workedMinutes / 60).toFixed(1)}h${d.exceedsDailyCap ? ' ⚠' : ''}`, m$(Math.round(d.pay)))),
+      r.days.filter((d) => d.pay > 0 || d.exceedsDailyCap || d.restBeforeMinutes != null).map((d) =>
+        line(`${fmtDate(d.date)} ${weekdayLabel(d.date)} ${Law.DayKindLabel[d.kind]} ${(d.workedMinutes / 60).toFixed(1)}h${d.exceedsDailyCap ? ' ⚠' : ''}${d.restBeforeMinutes != null ? ` 休${(d.restBeforeMinutes / 60).toFixed(1)}h ⚠` : ''}`, m$(Math.round(d.pay)))),
       r.days.some((d) => d.pay > 0) ? null : h('p', { class: 'small muted' }, '本月沒有超過 8 小時或假日出勤的紀錄。')),
     h('p', { class: 'small muted' },
       '計算方式：時薪＝月薪基數÷240；平日超過 8 小時，前 2 小時×4/3、之後×5/3；休息日按實際時數，前 2 小時×4/3、第 3–8 小時×5/3、第 9 小時起×8/3；' +
       `例假／國定假日 8 小時內加發 1 日工資，超過部分依平日加班計算。每班扣除休息 ${law.breakMinutes} 分鐘；日別「${Law.DayModes[law.dayMode]?.label}」。` +
       (law.dayMode === 'MARKS' ? '3X 若是颱風假出勤，法令沒有強制加倍（勞動部只建議雇主加給），依法應得可能低於此估算。' : '') +
+      '兩班間隔：同一天打多次卡算同一個工作天，比較前一個工作天最後下班到這天第一次上班的時間；法條寫的是輪班制換班，是否適用依實際認定。' +
       '未考慮變形工時、責任制（第 84-1 條）、補休或公司另有約定，實際以勞動部及主管機關認定為準。'));
   return card;
 }

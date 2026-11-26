@@ -114,6 +114,25 @@ test('labor: 跨夜 14 小時 × 5 天', () => {
   const r = L.calculate(recs, 36000, 0, 'MARKS');
   assert.equal(r.daysOverDailyCap, 5); near(r.totalOvertimeHours, 30);
 });
+test('labor: 兩班間隔不到 11 小時（第 34 條）', () => {
+  // 20:00→10:00 連續 5 天：每天只休 10 小時，第 2～5 天各算 1 次
+  const night = [1, 2, 3, 4, 5].map((i) => rec({ id: i, date: D(2026, 11, i), startTime: hm(20), endTime: hm(10) }));
+  const r = L.calculate(night, 36000, 0, 'MARKS');
+  assert.equal(r.daysShortRest, 4);
+  assert.equal(r.days[1].restBeforeMinutes, 600); assert.equal(r.days[0].restBeforeMinutes, null);
+  // 同一天打兩次卡（中午休 1 小時）不算
+  const split = [rec({ id: 1, startTime: hm(6), endTime: hm(12) }), rec({ id: 2, startTime: hm(13), endTime: hm(19) })];
+  assert.equal(L.calculate(split, 36000, 0, 'MARKS').daysShortRest, 0);
+  // 剛好 11 小時不算
+  const ok = [rec({ id: 1, date: D(2026, 11, 2), startTime: hm(8), endTime: hm(19) }), rec({ id: 2, date: D(2026, 11, 3), startTime: hm(6), endTime: hm(15) })];
+  assert.equal(L.calculate(ok, 36000, 0, 'MARKS').daysShortRest, 0);
+  // 本期第一天要和上一期最後一班比較
+  const prev = rec({ id: 1, date: D(2026, 11, 30), startTime: hm(8), endTime: hm(22) });
+  const first = rec({ id: 2, date: D(2026, 12, 1), startTime: hm(6), endTime: hm(15) });
+  assert.equal(L.calculate([first], 36000, 0, 'MARKS').daysShortRest, 0);
+  const withHist = L.calculate([first], 36000, 0, 'MARKS', [prev, first]);
+  assert.equal(withHist.daysShortRest, 1); assert.equal(withHist.days[0].restBeforeMinutes, 480);
+});
 
 // ── ShiftValidationTest
 test('validation: 正常、晚班跨夜無警告', () => {
