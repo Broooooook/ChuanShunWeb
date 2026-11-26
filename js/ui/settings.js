@@ -108,10 +108,6 @@ export function renderSettings(ctx) {
 
   return h('div', { class: 'stack' },
     appBar('設定'),
-    sec('general', '一般設定',
-      h('div', { class: 'row-between' }, h('span', {}, '下班打卡後重置'),
-        h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: !!s.resetAfterPunchOut, onchange: (e) => ctx.mutate((x) => { x.settings.resetAfterPunchOut = e.target.checked; }) }), h('span', { class: 'slider' }))),
-      h('p', { class: 'tiny-text secondary-text' }, '開啟時，完成下班打卡的今日記錄將不會顯示於首頁，呈現歸 0 狀態（可往「記錄」內查看完整記錄），適合一日多次打卡的用戶。預設為關閉（首頁顯示最新完成的卡片）。')),
     sec('appearance', '外觀',
       h('div', { class: 'seg' }, [['LIGHT', '淺色'], ['DARK', '深色'], ['SYSTEM', '跟隨手機']].map(([k, l]) =>
         h('button', { type: 'button', class: 'seg-btn' + ((s.theme || 'LIGHT') === k ? ' on' : ''), onclick: () => ctx.mutate((x) => { x.settings.theme = k; }) }, l))),

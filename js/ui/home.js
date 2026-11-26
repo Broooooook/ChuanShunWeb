@@ -27,7 +27,6 @@ export function renderHome(ctx) {
   startTicker();
   const st = ctx.state, s = st.settings;
   let r = activeRecord(st);
-  if (s.resetAfterPunchOut && r && r.endTime != null) r = null;
   const working = !!(r && r.startTime != null && r.endTime == null);
   const today = todayEpochDay();
   const overnightOpen = working && r.date < today;

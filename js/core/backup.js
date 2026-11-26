@@ -18,7 +18,7 @@ export function defaultSettings() {
   return {
     defaultDriver: '', defaultDestination: '', defaultAcidType: '',
     destinations: [], acidTypes: [], drivers: [],
-    billingStartDay: 26, billingStartDaysMap: {}, resetAfterPunchOut: false,
+    billingStartDay: 26, billingStartDaysMap: {},
     totalSpecialLeave: 0, usedSpecialLeave: 0, salaryInfo: { ...emptySalary(), ...DEFAULT_RATES }, ...DEFAULT_COLORS,
     // 以下為網頁版自己的設定（Android 匯入時會自動忽略）
     destinationTrips: {}, law: { breakMinutes: 60, dayMode: 'MARKS', includeBonus: true }, theme: 'LIGHT',
