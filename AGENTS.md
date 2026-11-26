@@ -21,7 +21,6 @@
 - `js/core/`：計算規則。`shift.js`（跨日／晚班：19:59 之後上班且跨夜，卡片歸到下班那天；`interval()` 算實際起訖）、`trips.js`、`billing.js`（計酬區間）、`labor.js`（勞基法：46 小時月上限、12 小時日上限、第 34 條兩班間隔 11 小時）、`validation.js`、`salary.js`、`actions.js`、`backup.js`、`statement.js`、`zip.js`
 - `js/ui/`：畫面（`home.js`、`history.js`、`stats.js`、`settings.js`、`tripDialog.js`、`dom.js`、`files.js`）
 - `js/store.js`：儲存；`sw.js`：離線快取（有網路一律抓新版）
-- `tools/tutorial-video/`：教學影片製作工具（只用示範假資料），用法見裡面的 README
 
 ## 改版流程
 1. 改程式（記得 Android 版也要對應修改）。
@@ -31,7 +30,7 @@
 5. **更新這份文件和私人儲存庫的 AGENTS.md**（版本、改了什麼、待辦）。
 
 ## 目前版本
-- 1.2.1（2026-11-26）：設定頁顯示的版本號改成自動跟 `APP_VERSION` 一致（原本寫死 1.1.0）。新增 `tools/tutorial-video/`（教學影片製作工具，用假資料）。
+- 1.2.1（2026-11-26）：設定頁顯示的版本號改成自動跟 `APP_VERSION` 一致（原本寫死 1.1.0）。
 - 1.2.0（2026-11-26）：勞基法試算加上「兩班間隔不到 11 小時（第 34 條）」提醒。
 - 1.1.1：移除沒有作用的「下班打卡後重置」設定。
 
