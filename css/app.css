@@ -153,6 +153,7 @@ textarea.input { min-height: 64px; }
   .stmt th { background: #e3edf8; }
   .stmt tbody tr:nth-child(even) { background: #f6f8fb; }
   .stmt tfoot td { font-weight: 700; border-top: 1.5px solid #888; }
+  .stmt .warn { color: #c62828; font-size: 9pt; margin: 6px 0; }
   .stmt .r { text-align: right; }
   .stmt table.money { width: 60%; }
   .stmt tr.b td { font-weight: 700; border-top: 1px solid #888; }

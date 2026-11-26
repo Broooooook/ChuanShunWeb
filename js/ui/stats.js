@@ -6,7 +6,7 @@ import { workMinutes, isDraft, splitToDaySegments } from '../core/shift.js';
 import { recordTripCount, aggregateBy, fmtNum } from '../core/trips.js';
 import { effectiveSalary, monthSummary, INCOME, DEDUCTIONS, RATES, SALARY_FIELDS } from '../core/salary.js';
 import * as Law from '../core/labor.js';
-import { buildStatement, statementXlsx, statementHtml } from '../core/statement.js';
+import { buildStatement, buildLawSection, statementXlsx, statementHtml } from '../core/statement.js';
 import { saveFile } from './files.js';
 
 export function renderStats(ctx) {
@@ -92,7 +92,7 @@ function monthView(ctx, v, hidden) {
       h('div', { class: 'muted small bad' }, '扣款項目'),
       DEDUCTIONS.map(([k, l]) => edit(k, l, hidden ? 'NT$ ****' : '- ' + money(sal[k] || 0))),
       line(h('b', {}, '扣款合計'), h('b', {}, hidden ? 'NT$ ****' : '- ' + money(sum.deduction)))),
-    h('button', { class: 'btn wide', type: 'button', onclick: () => exportChooser(ctx, v, recs, sal, sum) }, '🧾 匯出本月薪資對帳單'),
+    h('button', { class: 'btn wide primary', type: 'button', onclick: () => exportChooser(ctx, v, recs, sal, sum) }, '🧾 匯出本月薪資對帳單'),
     laborCard(ctx, recs, sal, sum, hidden));
 }
 
@@ -199,8 +199,8 @@ function lawSettings(ctx, law) {
 function exportChooser(ctx, v, recs, sal, sum) {
   const s = ctx.state.settings;
   const { law, base } = lawBase(ctx, sal, sum);
-  const lawPay = base > 0 ? Law.calculate(recs, base, law.breakMinutes, law.dayMode).totalPay : null;
-  const data = buildStatement({ y: v.y, m: v.m, rangeText: billingRangeStr(v.y, v.m, s.billingStartDaysMap, s.billingStartDay), records: recs, salary: sal, summary: sum, lawPay });
+  const lawSec = base > 0 ? buildLawSection(Law.calculate(recs, base, law.breakMinutes, law.dayMode, ctx.state.workRecords), law.breakMinutes, law.dayMode) : null;
+  const data = buildStatement({ y: v.y, m: v.m, rangeText: billingRangeStr(v.y, v.m, s.billingStartDaysMap, s.billingStartDay), records: recs, salary: sal, summary: sum, law: lawSec });
   const close = openDialog({
     title: '匯出格式',
     body: h('div', { class: 'stack' },

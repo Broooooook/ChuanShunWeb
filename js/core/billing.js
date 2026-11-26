@@ -31,3 +31,9 @@ export function billingMonthOf(epochDay, map = {}, def = 26) {
   if (epochDay >= r2.start && epochDay <= r2.end) return n;
   return { y, m };
 }
+
+/** 這天是不是計酬月的最後一天（月底提醒用） */
+export function isBillingLastDay(epochDay, map = {}, def = 26) {
+  const { y, m } = billingMonthOf(epochDay, map, def);
+  return billingRange(y, m, map, def).end === epochDay;
+}

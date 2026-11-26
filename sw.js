@@ -1,5 +1,5 @@
 // 離線快取：先用網路拿最新版，沒網路時用快取（所以更新會自動生效，斷線也能打卡）
-const CACHE = 'chuanshun-v1.2.2';
+const CACHE = 'chuanshun-v1.3.0';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css', 'css/android.css',
   'js/app.js', 'js/store.js', 'js/defaults.js',

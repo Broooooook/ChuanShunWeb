@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { epochDayOf, hm } from '../js/core/date.js';
-import { buildStatement, statementXlsx } from '../js/core/statement.js';
+import { buildStatement, buildLawSection, statementXlsx, statementHtml } from '../js/core/statement.js';
+import { calculate as lawCalc } from '../js/core/labor.js';
 import { monthSummary, emptySalary } from '../js/core/salary.js';
 import { parseBackup, buildBackup } from '../js/core/backup.js';
 
@@ -16,7 +17,10 @@ test('xlsx 對帳單可產生', () => {
   const sal = { ...emptySalary(), baseSalary: 30000, foodAllowance: 3000, laborInsurance: 800, tripBonusRate: 400, nightShiftBonusRate: 300 };
   const sum = monthSummary(records, sal);
   assert.equal(sum.tripBonus, 600); assert.equal(sum.net, 33100);
-  const st = buildStatement({ y: 2026, m: 11, rangeText: '10/26 ~ 11/25', records, salary: sal, summary: sum, lawPay: 1234 });
+  const st = buildStatement({ y: 2026, m: 11, rangeText: '10/26 ~ 11/25', records, salary: sal, summary: sum, law: buildLawSection(lawCalc(records, 33000, 60, 'MARKS'), 60, 'MARKS') });
+  assert.ok(st.law.totalPay > 0); assert.equal(st.lawPay, st.law.totalPay);
+  assert.ok(st.law.summary.some(([k]) => k === '依法應得加班費合計')); assert.ok(st.law.days.length >= 1);
+  assert.match(statementHtml(st), /勞基法加班費試算/);
   assert.equal(st.days[1].start, '(11/3) 21:00'); assert.equal(st.days[1].tags, '2X'); assert.equal(st.totalMinutes, 1230);
   mkdirSync('tests/out', { recursive: true });
   writeFileSync('tests/out/sample.xlsx', statementXlsx(st));

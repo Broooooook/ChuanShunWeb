@@ -4,7 +4,7 @@ import { activeRecord, clockIn, clockOut, updateStatus, addTrip, updateTrip, del
 import { workMinutes } from '../core/shift.js';
 import { overtimeMultiplier, recordTripCount, fmtNum } from '../core/trips.js';
 import { fmtTime, fmtDuration, todayEpochDay, monthKey, ymdOf } from '../core/date.js';
-import { billingMonthOf } from '../core/billing.js';
+import { billingMonthOf, isBillingLastDay } from '../core/billing.js';
 import { effectiveSalary } from '../core/salary.js';
 import { openTripDialog, tripItem } from './tripDialog.js';
 
@@ -123,11 +123,27 @@ function confirmClockOut(ctx, r) {
       h('div', { class: 'summary-box' }, line('上班時間', fmtTime(r.startTime)), line('目前工時', fmtDuration(workMinutes(r))),
         line('排程項目', `${r.trips.length} 項／${fmtNum(total)} 趟`), r.nightShiftCount ? line('夜點', `${r.nightShiftCount} 次`) : null)),
     buttons: [{ label: '繼續編輯' }, { label: '確認下班', kind: 'danger', onClick: async () => {
-      await ctx.mutate((x) => clockOut(x));
+      let done = null;
+      await ctx.mutate((x) => { done = clockOut(x); });
       const noTrips = r.trips.length === 0 && !r.isOffDay && !r.isOfficialBusiness && !(r.specialLeaveHours > 0);
       toast(noTrips ? '已下班打卡。提醒：這班還沒有記錄任何車趟' : '已下班打卡，辛苦了！', noTrips ? 4500 : 2600);
+      const s = ctx.state.settings;
+      if (done && isBillingLastDay(done.date, s.billingStartDaysMap, s.billingStartDay)) monthEndReminder(ctx, done.date);
     } }],
   });
+}
+
+/** 計酬月最後一天下班後：提醒匯出對帳單和備份，按確定跳到統計頁（只有網頁版有） */
+function monthEndReminder(ctx, date) {
+  const s = ctx.state.settings;
+  setTimeout(() => openDialog({
+    title: '本月最後一天',
+    body: h('p', {}, '記得匯出本月薪資對帳單和備份記錄唷'),
+    buttons: [{ label: '確定', kind: 'primary', onClick: () => {
+      ctx.view.stats = { mode: 'MONTH', ...billingMonthOf(date, s.billingStartDaysMap, s.billingStartDay), year: ymdOf(date).y };
+      ctx.go('stats');
+    } }],
+  }), 300);
 }
 
 /** 未出荷設定（對應 Android NotShippedDialog：特休／輪空／其它＋備註） */

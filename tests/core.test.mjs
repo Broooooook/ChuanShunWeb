@@ -216,3 +216,9 @@ test('預設獎金基數：沒設定過才套用 400/300', () => {
   const b = applyDefaultRates({ salaryInfo: { tripBonusRate: 350, nightShiftBonusRate: 0 } });
   assert.equal(b.salaryInfo.tripBonusRate, 350);
 });
+test('billing: 計酬月最後一天（月底提醒）', () => {
+  assert.equal(B.isBillingLastDay(D(2026, 11, 25), {}, 26), true);
+  assert.equal(B.isBillingLastDay(D(2026, 11, 24), {}, 26), false);
+  assert.equal(B.isBillingLastDay(D(2026, 11, 26), {}, 26), false);
+  assert.equal(B.isBillingLastDay(D(2026, 11, 30), {}, 1), true);
+});

@@ -4,8 +4,30 @@ import { workMinutes, interval, isDraft } from './shift.js';
 import { recordTripCount, fmtNum } from './trips.js';
 import { INCOME, DEDUCTIONS } from './salary.js';
 import { makeZip } from './zip.js';
+import { DayKindLabel, DayModes } from './labor.js';
 
-export function buildStatement({ y, m, rangeText, records, salary, summary, lawPay }) {
+/** 對帳單用的「勞基法加班費試算」整理（內容與統計頁卡片相同） */
+export function buildLawSection(r, breakMinutes, dayMode) {
+  const m$ = (v) => 'NT$ ' + Math.round(v).toLocaleString('en-US');
+  const summary = [['月薪基數', m$(r.monthlyWageBase)], ['平日每小時工資額（÷240）', 'NT$ ' + r.hourlyWage.toFixed(1)],
+    ...[0, 1, 2].filter((k) => k === 0 || r.workedDaysOf(k) > 0).map((k) =>
+      [`${DayKindLabel[k]}（${r.workedDaysOf(k)} 天，加班 ${r.overtimeHoursOf(k).toFixed(1)} 小時）`, m$(r.payOf(k))]),
+    ['依法應得加班費合計', m$(r.totalPay)], ['本月延長工時', `${r.totalOvertimeHours.toFixed(1)} 小時 / 上限 46 小時`]];
+  const warnings = [r.exceedsMonthlyCap ? '本月延長工時超過 46 小時（第 32 條）' : null,
+    r.daysOverDailyCap ? `有 ${r.daysOverDailyCap} 天工時超過 12 小時（第 32 條）` : null,
+    r.daysShortRest ? `有 ${r.daysShortRest} 次兩班間隔不到 11 小時（第 34 條）` : null,
+    r.belowMinimumWage ? '月薪基數低於 2026 年最低工資 29,500 元' : null].filter(Boolean);
+  const days = r.days.filter((d) => d.pay > 0 || d.exceedsDailyCap || d.restBeforeMinutes != null).map((d) => ({
+    label: `${ymdOf(d.date).m}/${ymdOf(d.date).d} (${weekdayLabel(d.date)}) ${DayKindLabel[d.kind]} ${(d.workedMinutes / 60).toFixed(1)}h` +
+      (d.exceedsDailyCap ? ' 超過12小時' : '') + (d.restBeforeMinutes != null ? ` 間隔${(d.restBeforeMinutes / 60).toFixed(1)}h` : ''),
+    amount: Math.round(d.pay) }));
+  const note = '僅供參考，不計入上方薪資。時薪＝月薪基數÷240；平日超過 8 小時，前 2 小時×4/3、之後×5/3；' +
+    '休息日前 2 小時×4/3、第 3–8 小時×5/3、第 9 小時起×8/3；例假／國定假日 8 小時內加發 1 日工資。' +
+    `每班扣除休息 ${breakMinutes} 分鐘；日別「${DayModes[dayMode]?.label ?? ''}」。實際以勞動部及主管機關認定為準。`;
+  return { summary, warnings, days, totalPay: r.totalPay, note };
+}
+
+export function buildStatement({ y, m, rangeText, records, salary, summary, law = null }) {
   const days = records.filter((r) => !isDraft(r)).sort((a, b) => a.date - b.date || (a.startTime ?? 0) - (b.startTime ?? 0)).map((r) => {
     const iv = interval(r);
     const md = (d) => { const x = ymdOf(d); return `${x.m}/${x.d}`; };
@@ -26,7 +48,7 @@ export function buildStatement({ y, m, rangeText, records, salary, summary, lawP
   const deductions = DEDUCTIONS.map(([k, l]) => ({ label: l, amount: salary[k] || 0 }));
   return {
     y, m, rangeText, title: `薪資對帳單 ${y} 年 ${m} 月`, fileBase: `薪資對帳單_${y}${String(m).padStart(2, '0')}`,
-    days, income, deductions, gross: summary.gross, deduction: summary.deduction, net: summary.net, lawPay,
+    days, income, deductions, gross: summary.gross, deduction: summary.deduction, net: summary.net, law, lawPay: law ? law.totalPay : null,
     totalMinutes: days.reduce((a, d) => a + d.minutes, 0), totalTrips: days.reduce((a, d) => a + d.trips, 0),
     totalNight: days.reduce((a, d) => a + d.night, 0),
   };
@@ -75,7 +97,14 @@ export function statementXlsx(d) {
   const ds = r2.length + 1; d.deductions.forEach((x) => r2.push([str(x.label), n(x.amount, S.money)])); const de = r2.length;
   r2.push([str('扣款合計', S.bold), f(`SUM(B${ds}:B${de})`, d.deduction, S.moneyBold)]); const dRow = r2.length;
   r2.push([], [str('本月實領', S.bold), f(`B${gRow}-B${dRow}`, d.net, S.moneyBold)]);
-  if (d.lawPay > 0) r2.push([], [str('（參考）勞基法估算加班費，未計入上方金額'), n(d.lawPay, S.money)]);
+  if (d.law) {
+    const L = d.law;
+    r2.push([], [str('勞基法加班費試算（參考，不計入上方金額）', S.header), str('', S.header)]);
+    L.summary.forEach(([k, v], i) => { const b = i === L.summary.length - 2 ? S.bold : S.def; r2.push([str(k, b), str(v, b)]); });
+    if (L.warnings.length) { r2.push([str('超過法定上限', S.bold)]); L.warnings.forEach((w) => r2.push([str('・' + w)])); }
+    if (L.days.length) { r2.push([], [str('每日明細', S.header), str('加班費 (NT$)', S.header)]); L.days.forEach((x) => r2.push([str(x.label), n(x.amount, S.money)])); }
+    r2.push([], [str(L.note)]);
+  }
 
   const ct = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
   return makeZip([
@@ -99,5 +128,13 @@ export function statementHtml(d) {
 <h3>每日明細</h3><table class="days"><thead><tr><th>日期</th><th>星期</th><th>上班</th><th>下班</th><th>工時</th><th>趟數</th><th>夜點</th><th>註記</th><th>備註</th></tr></thead><tbody>${rows}</tbody>
 <tfoot><tr><td>合計</td><td>${d.days.length} 筆</td><td></td><td></td><td class="r">${fmtDuration(d.totalMinutes)}</td><td class="r">${fmtNum(d.totalTrips)}</td><td class="r">${d.totalNight}</td><td></td><td></td></tr></tfoot></table>
 ${sec('收入項目', d.income, '月薪合計', d.gross, false)}${sec('扣款項目', d.deductions, '扣款合計', d.deduction, true)}
-<p class="net">本月實領　<b>${money(d.net)}</b></p>${d.lawPay > 0 ? `<p class="sub">（參考）依勞基法估算加班費 ${money(d.lawPay)}，未計入上方金額。</p>` : ''}</div>`;
+<p class="net">本月實領　<b>${money(d.net)}</b></p>${d.law ? lawHtml(d.law) : ''}</div>`;
+}
+
+function lawHtml(L) {
+  const last = L.summary.length - 2;
+  return `<h3>勞基法加班費試算（參考，不計入上方金額）</h3><table class="money">${L.summary.map(([k, v], i) => `<tr${i === last ? ' class="b"' : ''}><td>${h(k)}</td><td class="r">${h(v)}</td></tr>`).join('')}</table>` +
+    (L.warnings.length ? `<p class="warn"><b>超過法定上限</b><br>${L.warnings.map((w) => '・' + h(w)).join('<br>')}</p>` : '') +
+    (L.days.length ? `<h3>每日明細（加班費）</h3><table class="money">${L.days.map((x) => `<tr><td>${h(x.label)}</td><td class="r">${money(x.amount)}</td></tr>`).join('')}</table>` : '') +
+    `<p class="sub">${h(L.note)}</p>`;
 }
