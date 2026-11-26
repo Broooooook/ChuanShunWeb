@@ -4,6 +4,7 @@ import { buildBackup, parseBackup, applyDefaultRates } from '../core/backup.js';
 import { saveFile, pickTextFile } from './files.js';
 import { fmtDate, todayEpochDay } from '../core/date.js';
 import { addOption } from './tripDialog.js';
+import { APP_VERSION } from '../app.js';
 
 export async function exportBackup(ctx) {
   const d = new Date();
@@ -141,5 +142,5 @@ export function renderSettings(ctx) {
     sec('install', '安裝與說明',
       h('button', { class: 'btn outline wide', type: 'button', onclick: () => import('../app.js').then((m) => m.showInstallGuide()) }, '📲 如何安裝到手機／電腦'),
       h('p', { class: 'tiny-text muted' }, '所有資料只存在這台裝置，不會上傳到任何伺服器。'),
-      h('p', { class: 'tiny-text muted' }, '全順工時記錄 網頁版 1.1.0')));
+      h('p', { class: 'tiny-text muted' }, `全順工時記錄 網頁版 ${APP_VERSION}`)));
 }
