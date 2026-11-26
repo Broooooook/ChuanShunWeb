@@ -8,3 +8,7 @@
 4. `python3 compose.py`：加字幕、片頭片尾，輸出 tutorial.mp4
 
 介面改版後，照上面重跑一次就能更新影片；畫面上的按鈕文字改了的話，要同步改 record.js 裡對應的文字。
+
+## 配音版
+5. 旁白文字在 `旁白.json`（由 scenes.json 的字幕整理；Claude 專案檔案「教學影片/」裡有一份）。在 Windows 上用內建台灣中文語音「Microsoft Hanhan」（PowerShell System.Speech）把每段唸成 `<id>.wav`。（edge-tts 自然語音被使用者電腦的安全設定擋住，要用的話需先取得使用者同意安裝。）
+6. `python3 narrated.py <wav 資料夾>`：依每段配音長度調整畫面秒數，加上 `music.py` 自己合成的原創背景音樂（無版權問題），輸出 tutorial_voice.mp4。
