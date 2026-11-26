@@ -8,12 +8,17 @@ const blank = (state, date, driverName = '') => ({
   specialLeaveHours: 0, isOffDay: false, isOfficialBusiness: false, trips: [], remarks: '', isNextDay: false,
 });
 
-/** 進行中的班次（有上班、無下班，含跨夜）優先；否則今天最新一筆 */
+/** 23:30 之後，已下班的本日卡片不再顯示，首頁回到新一天的「開始上班」 */
+export const DAY_RESET_SECOND = 23 * 3600 + 30 * 60;
+
+/** 進行中的班次（有上班、無下班，含跨夜）優先；否則今天最新一筆（23:30 後已下班的不算） */
 export function activeRecord(state, now = new Date()) {
   const open = state.workRecords.filter((r) => r.startTime != null && r.endTime == null).sort((a, b) => b.date - a.date || b.id - a.id)[0];
   if (open) return open;
   const today = todayEpochDay(now);
-  return state.workRecords.filter((r) => r.date === today).sort((a, b) => b.id - a.id)[0] || null;
+  const latest = state.workRecords.filter((r) => r.date === today).sort((a, b) => b.id - a.id)[0] || null;
+  if (latest && latest.startTime != null && latest.endTime != null && nowSecondOfDay(now) >= DAY_RESET_SECOND) return null;
+  return latest;
 }
 
 function ensureDraft(state, now) {

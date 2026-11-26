@@ -46,7 +46,9 @@ export function renderHome(ctx) {
       timerEl = h('div', { class: 'timer' }, hms(workMinutes(r, { nowIfStillWorking: false }) * 60));
     }
   }
-  const actionLabel = working ? '結束班次' : r?.startTime != null && r?.endTime != null ? '開始下一班' : '開始上班';
+  // 本日已下班：改成半大小、靠左的紅色「本日再打卡」，避免誤以為沒打卡或誤觸；23:30 起自動回到新一天。
+  const doneToday = !working && r?.startTime != null && r?.endTime != null;
+  const actionLabel = working ? '結束班次' : doneToday ? '本日再打卡' : '開始上班';
   const statusCard = h('section', { class: 'card elevated' },
     h('div', { class: 'row-between' },
       h('div', { class: 'row-wrap' }, h('span', { class: 'title-md' }, `${m}月${d}日 ${WEEK[dow]}`),
@@ -57,7 +59,7 @@ export function renderHome(ctx) {
       h('div', {}, h('div', { class: 'label-sm' }, '上班時間'), h('div', { class: 'big-time' }, fmtTime(r.startTime))),
       h('div', { class: 'right' }, h('div', { class: 'label-sm' }, '工作時間'), timerEl)) : null,
     r?.endTime != null ? h('div', {}, h('span', { class: 'muted' }, '下班時間：'), h('b', { class: 'error-text' }, fmtTime(r.endTime))) : null,
-    h('button', { class: 'btn big-action ' + (working ? 'danger' : 'primary'), type: 'button',
+    h('button', { class: 'btn ' + (doneToday ? 'again-action danger' : 'big-action ' + (working ? 'danger' : 'primary')), type: 'button',
       onclick: () => (working ? confirmClockOut(ctx, r) : ctx.mutate((x) => clockIn(x)).then(() => toast('已上班打卡'))) }, actionLabel),
     h('hr'),
     h('div', { class: 'status-controls' },

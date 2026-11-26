@@ -39,6 +39,7 @@
 .timer { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .timer.working { color: var(--primary); }
 .btn.big-action { width: 100%; min-height: 56px; font-size: 18px; border-radius: 12px; }
+.btn.again-action { width: 50%; min-height: 30px; height: 30px; padding: 0 12px; font-size: 14px; border-radius: 10px; align-self: flex-start; }
 .tag { border-radius: 4px; padding: 1px 6px; font-size: 12px; font-weight: 700; }
 .tag.tertiary { background: var(--tertiary-container); color: var(--on-tertiary-container); }
 .tag.error { background: var(--error-container); color: var(--on-error-container); }

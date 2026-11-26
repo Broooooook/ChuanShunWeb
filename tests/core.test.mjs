@@ -182,6 +182,16 @@ test('actions: 凌晨上班自動夜點、重複按上班不覆蓋、同日可�
   A.clockOut(s, at(2026, 7, 15, 12));
   A.clockIn(s, at(2026, 7, 15, 13)); assert.equal(s.workRecords.length, 2);
 });
+test('actions: 下班後當天仍顯示已下班卡（本日再打卡），23:30 起回到新一天', () => {
+  const s = st();
+  A.clockIn(s, at(2026, 7, 15, 8)); A.clockOut(s, at(2026, 7, 15, 17));
+  const r = A.activeRecord(s, at(2026, 7, 15, 23, 29));
+  assert.ok(r && r.startTime != null && r.endTime != null);
+  assert.equal(A.activeRecord(s, at(2026, 7, 15, 23, 30)), null);
+  assert.equal(A.activeRecord(s, at(2026, 7, 16, 0, 0)), null);
+  const n = A.clockIn(s, at(2026, 7, 15, 23, 40)); // 23:30 後上班 → 開新卡
+  assert.equal(s.workRecords.length, 2); assert.equal(n.endTime, null);
+});
 test('actions: 先記車趟再上班用同一張卡；趟數記憶', () => {
   const s = st();
   A.addTrip(s, { id: 't1', destination: 'TSMC 8A', acidType: 'H2SO4', tripCount: 1.5 }, at(2026, 7, 15, 7));
