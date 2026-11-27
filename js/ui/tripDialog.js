@@ -53,7 +53,6 @@ export function openTripDialog(ctx, { initial = null, template = null, defaultDr
 
   const label = (text) => h('div', { class: 'field-label' }, text);
   const body = h('div', { class: 'form' },
-    !initial && template ? h('p', { class: 'hint' }, '已自動帶入前一趟資料，可只修改不同欄位。') : null,
     h('div', {}, label('目的地'), comboField(names(s.destinations), t.destination, (v) => { t.destination = v; if (changed('destination')) applyMemory(); }, add('destinations'))),
     h('div', {}, label('主要酸別'), comboField(names(s.acidTypes), t.acidType, (v) => { t.acidType = v; if (changed('acidType')) applyMemory(); }, add('acidTypes'))),
     h('div', {}, label('搭檔'), comboField(names(s.drivers), t.driverName, (v) => { t.driverName = v; }, add('drivers'))),

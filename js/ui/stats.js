@@ -3,7 +3,7 @@ import { h, openDialog, promptDialog, money, toast, appBar } from './dom.js';
 import { billingRange, billingRangeStr, billingMonthOf } from '../core/billing.js';
 import { addMonths, monthKey, todayEpochDay, fmtDuration, ymdOf, fmtDate, weekdayLabel } from '../core/date.js';
 import { workMinutes, isDraft, splitToDaySegments } from '../core/shift.js';
-import { recordTripCount, aggregateBy, fmtNum, areaCounts, AREAS, tripRatesOf } from '../core/trips.js';
+import { recordTripCount, aggregateBy, fmtNum, areaCounts, AREAS, tripRatesOf, weightedTrips } from '../core/trips.js';
 import { effectiveSalary, monthSummary, INCOME, DEDUCTIONS, SALARY_FIELDS } from '../core/salary.js';
 import * as Law from '../core/labor.js';
 import { buildStatement, buildLawSection, statementXlsx, statementHtml } from '../core/statement.js';
@@ -70,9 +70,10 @@ function monthView(ctx, v, hidden) {
       line('出勤班次', `${days} 班`), line('總工時', fmtDuration(mins)),
       ...countLines(sum.counts),
       line('夜點', `${sum.night} 次`),
+      line(h('b', {}, '加權車趟'), h('b', {}, `${fmtNum(weightedTrips(sum.counts))} 趟`)),
       line('平均每日工時', `${days ? (mins / 60 / days).toFixed(1) : '0.0'} 小時`),
       line('平均每趟工時', sum.trips > 0 ? fmtDuration(mins / sum.trips) : '00:00'),
-      line('平均每日車趟', `${days ? (sum.trips / days).toFixed(1) : '0.0'} 趟`), h('hr'),
+      line('平均每日車趟', `${days ? (weightedTrips(sum.counts) / days).toFixed(1) : '0.0'} 趟`), h('hr'),
       line(h('b', {}, '本月實領薪資'), h('b', { class: 'accent' }, m$(sum.net))), h('hr'),
       line('特休・本月已用', hoursFmt(monthUsed)), line('特休・今年已用', hoursFmt(yearUsed)),
       line('特休・剩餘', hoursFmt((sal.totalSpecialLeave || 0) - yearUsed)),
@@ -251,10 +252,11 @@ function yearView(ctx, v, hidden) {
       h('div', { class: 'card-title' }, '年度摘要'),
       line('總出勤班次', `${days} 班`), line('總工時', fmtDuration(mins)),
       ...countLines(areaCounts(recs)),
+      line('總夜點', `${recs.reduce((a, r) => a + (r.nightShiftCount || 0), 0)} 次`),
+      line(h('b', {}, '加權車趟'), h('b', {}, `${fmtNum(weightedTrips(areaCounts(recs)))} 趟`)),
       line('平均每日工時', `${days ? (mins / 60 / days).toFixed(1) : '0.0'} 小時`),
       line('平均每趟工時', trips > 0 ? fmtDuration(mins / trips) : '00:00'),
-      line('平均每日車趟', `${days ? (trips / days).toFixed(1) : '0.0'} 趟`),
-      line('總夜點', `${recs.reduce((a, r) => a + (r.nightShiftCount || 0), 0)} 次`), h('hr'),
+      line('平均每日車趟', `${days ? (weightedTrips(areaCounts(recs)) / days).toFixed(1) : '0.0'} 趟`), h('hr'),
       line(h('b', {}, '年度實領總薪資'), h('b', { class: 'accent' }, hidden ? 'NT$ ****' : money(net))),
       monthRows.length ? h('details', {}, h('summary', {}, '各月實領'), monthRows) : null, h('hr'),
       line('特休・今年已用', hoursFmt(used)), line('特休・剩餘', hoursFmt(total - used)), line('特休・總共', hoursFmt(total))),

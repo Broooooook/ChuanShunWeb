@@ -240,3 +240,8 @@ test('區域單價：舊代碼對到新區域，3X 乘 3，次數統計', () => 
   assert.equal(sum.trips, 6); assert.equal(sum.tripBonus, 3150 + 2800);
   assert.equal(T.recordTripBonus({ trips: [t(0)] }, R), 0); // 沒有區域
 });
+
+test('加權車趟：北部1 林口1.5 中部2 南部3 廠內1 特殊1 超時1', () => {
+  assert.equal(T.weightedTrips({ north: 24, linkou: 3, central: 2, special: 8, overtime: 12 }), 52.5);
+  assert.equal(T.weightedTrips({ south: 1, plant: 1 }), 4);
+});
