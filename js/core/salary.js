@@ -1,5 +1,5 @@
 // 薪資：月度設定（monthKey 之前最近的一筆生效，否則用全域設定）
-import { recordTripCount, recordExtraBonus } from './trips.js';
+import { recordTripCount, recordTripBonus, areaCounts, DEFAULT_TRIP_RATES } from './trips.js';
 
 export const SALARY_FIELDS = [
   'baseSalary', 'foodAllowance', 'mealAllowance', 'regionAllowance', 'attendanceBonus', 'carAllowance', 'otherAllowance',
@@ -13,7 +13,6 @@ export const DEDUCTIONS = [
   ['laborInsurance', '勞保費'], ['healthInsurance', '健保費'], ['groupInsurance', '團險眷保費'],
   ['welfareFund', '福利金'], ['incomeTax', '所得稅'], ['stockTrust', '員工持股信託'],
 ];
-export const RATES = [['tripBonusRate', '每趟獎金'], ['nightShiftBonusRate', '每次夜點獎金']];
 
 export function emptySalary() { const s = {}; SALARY_FIELDS.forEach((k) => (s[k] = 0)); s.totalSpecialLeave = 0; return s; }
 
@@ -26,12 +25,14 @@ export function effectiveSalary(mKey, monthlySalaries = [], globalSalary = empty
   return out;
 }
 
-export function monthSummary(records, sal) {
+/** rates：設定裡的車趟獎金單價（各區域、特殊、超時、夜點），所有月份一律用目前的單價計算 */
+export function monthSummary(records, sal, rates = DEFAULT_TRIP_RATES) {
   const trips = records.reduce((a, r) => a + recordTripCount(r), 0);
+  const counts = areaCounts(records);
   const night = records.reduce((a, r) => a + (r.nightShiftCount || 0), 0);
-  const tripBonus = Math.trunc(trips * sal.tripBonusRate) + records.reduce((a, r) => a + recordExtraBonus(r), 0);
-  const nightBonus = Math.trunc(night * sal.nightShiftBonusRate);
+  const tripBonus = Math.trunc(records.reduce((a, r) => a + recordTripBonus(r, rates), 0));
+  const nightBonus = Math.trunc(night * (rates.night || 0));
   const gross = INCOME.reduce((a, [k]) => a + (sal[k] || 0), 0) + tripBonus + nightBonus;
   const deduction = DEDUCTIONS.reduce((a, [k]) => a + (sal[k] || 0), 0);
-  return { trips, night, tripBonus, nightBonus, gross, deduction, net: gross - deduction };
+  return { trips, counts, night, tripBonus, nightBonus, gross, deduction, net: gross - deduction };
 }

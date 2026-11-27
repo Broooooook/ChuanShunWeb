@@ -70,10 +70,12 @@ test('trips: 倍率互斥 3X 優先', () => {
   assert.equal(T.overtimeMultiplier(false, false), 1); assert.equal(T.overtimeMultiplier(true, false), 2);
   assert.equal(T.overtimeMultiplier(false, true), 3); assert.equal(T.overtimeMultiplier(true, true), 3);
 });
-test('trips: (1+1)*2+1 = 5', () => {
+test('trips: 2X 時區域＋特殊乘 2，超時不乘', () => {
+  const R = T.DEFAULT_TRIP_RATES;
   const r = rec({ is2xOvertime: true, trips: [{ tripCount: 1, specialCount: 1, overtimeCount: 1, destination: 'A', acidType: 'H', driverName: 'D' }] });
-  assert.equal(T.recordTripCount(r), 5);
-  assert.deepEqual(T.aggregateBy([r], (t) => t.driverName, {}, 'weighted'), [['D', 5]]);
+  assert.equal(T.recordTripCount(r), 1);
+  assert.equal(T.recordTripBonus(r, R), (350 + 350) * 2 + 350);
+  assert.deepEqual(T.aggregateBy([r], (t) => t.driverName, {}), [['D', 1]]);
 });
 test('trips: 目的地以出現次數計', () => {
   const r = rec({ trips: [{ destination: 'TSMC', tripCount: 2 }, { destination: 'TSMC', tripCount: 1.5 }] });
@@ -223,16 +225,18 @@ test('billing: 計酬月最後一天（月底提醒）', () => {
   assert.equal(B.isBillingLastDay(D(2026, 11, 30), {}, 1), true);
 });
 
-test('林口區＝1 趟＋200，加班日 200 也乘倍數', () => {
-  const lk = { destination: 'L', acidType: 'H', tripCount: 1.5, specialCount: 0, overtimeCount: 0 };
-  const r1 = { trips: [lk] };
-  assert.equal(T.recordTripCount(r1), 1);
-  assert.equal(T.recordExtraBonus(r1), 200);
-  assert.equal(T.tripCountLabel(lk), '1+200');
-  const r2 = { is2xOvertime: true, trips: [{ ...lk, specialCount: 1 }] };
-  assert.equal(T.recordTripCount(r2), 4);
-  assert.equal(T.recordExtraBonus(r2), 400);
-  const sum = Sal.monthSummary([r1, r2], { tripBonusRate: 400, nightShiftBonusRate: 300 });
-  assert.equal(sum.trips, 5);
-  assert.equal(sum.tripBonus, 5 * 400 + 600);
+test('區域單價：舊代碼對到新區域，3X 乘 3，次數統計', () => {
+  const R = { ...T.DEFAULT_TRIP_RATES, plant: 500 };
+  const t = (c, extra = {}) => ({ destination: 'X', tripCount: c, specialCount: 0, overtimeCount: 0, ...extra });
+  const r1 = { trips: [t(1), t(1.5), t(2), t(3), t(0.5)] };
+  assert.equal(T.recordTripBonus(r1, R), 350 + 550 + 700 + 1050 + 500);
+  assert.deepEqual(['北部', '林口', '中部', '南部', '廠內'], r1.trips.map(T.tripCountLabel));
+  const r2 = { is3xOvertime: true, trips: [t(2, { overtimeCount: 2 })] };
+  assert.equal(T.recordTripBonus(r2, R), 700 * 3 + 2 * 350);
+  const c = T.areaCounts([r1, r2]);
+  assert.equal(c.central, 2); assert.equal(c.overtime, 2);
+  assert.equal(T.areaCountsText(c), '北部 1・林口 1・中部 2・南部 1・廠內 1・超時 2');
+  const sum = Sal.monthSummary([r1, r2], { nightShiftBonusRate: 999 }, R);
+  assert.equal(sum.trips, 6); assert.equal(sum.tripBonus, 3150 + 2800);
+  assert.equal(T.recordTripBonus({ trips: [t(0)] }, R), 0); // 沒有區域
 });

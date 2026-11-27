@@ -3,7 +3,7 @@ import { h, openDialog, toast, appBar, checkRow, columnStepper, timeInput, optio
 import { billingRange, billingRangeStr, billingMonthOf } from '../core/billing.js';
 import { addMonths, fmtTime, fmtDuration, todayEpochDay, toDateInput, fromDateInput, parseTimeInput, ymdOf } from '../core/date.js';
 import { workMinutes, isDraft, isLateStart } from '../core/shift.js';
-import { recordTripCount, fmtNum, tripCountLabel } from '../core/trips.js';
+import { recordTripCount, areaCounts, areaCountsText, fmtNum, tripCountLabel } from '../core/trips.js';
 import { check } from '../core/validation.js';
 import { upsertRecord, deleteRecord } from '../core/actions.js';
 import { openTripDialog } from './tripDialog.js';
@@ -125,7 +125,7 @@ function dayCard(ctx, r, v) {
         r.is3xOvertime ? h('div', { class: 'tiny-text b error-text' }, '★ 3X 加班')
           : r.is2xOvertime ? h('div', { class: 'tiny-text b tertiary-text' }, '★ 2X 加班') : null),
       h('div', { class: 'right' },
-        official && total === 0 ? null : h('div', { class: 'small b' }, `${fmtNum(total)} 趟`),
+        official && total === 0 ? null : h('div', { class: 'small b' }, total ? areaCountsText(areaCounts([r])) : '0 趟'),
         r.nightShiftCount > 0 ? h('div', { class: 'tiny-text b error-text' }, `夜點 ${r.nightShiftCount} 次`) : null)));
 
   if (expanded) {

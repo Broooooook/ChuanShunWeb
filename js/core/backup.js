@@ -1,5 +1,6 @@
 // 備份檔：與 Android 版 BackupModel 格式相同，兩邊可互相匯入
 import { emptySalary } from './salary.js';
+import { DEFAULT_TRIP_RATES } from './trips.js';
 
 export const DEFAULT_COLORS = {
   color3xOvertime: '#FFDAD6', color2xOvertime: '#FFD8E4', colorOffDay: '#C2E7FF', colorOfficial: '#E3F2FD', colorSpecActive: '#E8F5E9',
@@ -11,6 +12,9 @@ export const DEFAULT_RATES = { tripBonusRate: 400, nightShiftBonusRate: 300 };
 export function applyDefaultRates(settings) {
   const si = settings.salaryInfo || {};
   if (!si.tripBonusRate && !si.nightShiftBonusRate) settings.salaryInfo = { ...emptySalary(), ...si, ...DEFAULT_RATES };
+  // 依區域計算的車趟獎金單價（2026-11-27 起）。第一次升級時夜點沿用原本的設定
+  if (!settings.tripRates) settings.tripRates = { ...DEFAULT_TRIP_RATES, night: settings.salaryInfo.nightShiftBonusRate || DEFAULT_TRIP_RATES.night };
+  else settings.tripRates = { ...DEFAULT_TRIP_RATES, ...settings.tripRates };
   return settings;
 }
 
@@ -66,6 +70,7 @@ export function parseBackup(text) {
     destinationTrips: s.destinationTrips && typeof s.destinationTrips === 'object' ? s.destinationTrips : {},
     law: { ...base.law, ...(s.law || {}) },
   };
+  if (!(s.tripRates && typeof s.tripRates === 'object')) delete settings.tripRates; // 讓 applyDefaultRates 依原本的夜點單價補上
   // 確保 id 唯一
   const seen = new Set(); let next = 1;
   const records = m.workRecords.map(normRecord).map((r) => {

@@ -1,7 +1,7 @@
 // 薪資對帳單：資料整理、Excel（.xlsx）與可列印成 PDF 的 HTML
 import { fmtDate, fmtTime, weekdayLabel, ymdOf, fmtDuration } from './date.js';
 import { workMinutes, interval, isDraft } from './shift.js';
-import { recordTripCount, fmtNum } from './trips.js';
+import { areaCounts, areaCountsText, fmtNum } from './trips.js';
 import { INCOME, DEDUCTIONS } from './salary.js';
 import { makeZip } from './zip.js';
 import { DayKindLabel, DayModes } from './labor.js';
@@ -40,7 +40,7 @@ export function buildStatement({ y, m, rangeText, records, salary, summary, law 
     if (r.specialLeaveHours > 0) tags.push(`特休 ${fmtNum(r.specialLeaveHours)}h`);
     const minutes = r.startTime != null && r.endTime != null ? workMinutes(r, { nowIfStillWorking: false }) : 0;
     return { dateText: fmtDate(r.date, true), weekday: weekdayLabel(r.date), start, end, minutes,
-      hoursText: minutes > 0 ? fmtDuration(minutes) : '', trips: recordTripCount(r), night: r.nightShiftCount || 0,
+      hoursText: minutes > 0 ? fmtDuration(minutes) : '', trips: areaCountsText(areaCounts([r])), night: r.nightShiftCount || 0,
       tags: tags.join(' '), remarks: r.remarks || '' };
   });
   const income = [...INCOME.map(([k, l]) => ({ label: l, amount: salary[k] || 0 })),
@@ -49,7 +49,7 @@ export function buildStatement({ y, m, rangeText, records, salary, summary, law 
   return {
     y, m, rangeText, title: `薪資對帳單 ${y} 年 ${m} 月`, fileBase: `薪資對帳單_${y}${String(m).padStart(2, '0')}`,
     days, income, deductions, gross: summary.gross, deduction: summary.deduction, net: summary.net, law, lawPay: law ? law.totalPay : null,
-    totalMinutes: days.reduce((a, d) => a + d.minutes, 0), totalTrips: days.reduce((a, d) => a + d.trips, 0),
+    totalMinutes: days.reduce((a, d) => a + d.minutes, 0), totalTrips: areaCountsText(areaCounts(records.filter((r) => !isDraft(r)))),
     totalNight: days.reduce((a, d) => a + d.night, 0),
   };
 }
@@ -81,14 +81,14 @@ function sheet(rows, widths, freeze) {
 
 export function statementXlsx(d) {
   const r1 = [[str(d.title, S.title)], [str(`計酬區間：${d.rangeText}`)], [],
-    ['日期', '星期', '上班', '下班', '工時(小時)', '工時(時:分)', '趟數', '夜點', '註記', '備註'].map((h) => str(h, S.header))];
+    ['日期', '星期', '上班', '下班', '工時(小時)', '工時(時:分)', '車趟', '夜點', '註記', '備註'].map((h) => str(h, S.header))];
   const first = r1.length + 1;
   d.days.forEach((x) => r1.push([str(x.dateText), str(x.weekday), str(x.start), str(x.end),
-    x.minutes > 0 ? n(Math.round(x.minutes / 60 * 100) / 100, S.dec) : null, str(x.hoursText), n(x.trips, S.dec), n(x.night), str(x.tags), str(x.remarks)]));
+    x.minutes > 0 ? n(Math.round(x.minutes / 60 * 100) / 100, S.dec) : null, str(x.hoursText), str(x.trips), n(x.night), str(x.tags), str(x.remarks)]));
   const last = r1.length;
   if (d.days.length) r1.push([str('合計', S.bold), str(`${d.days.length} 筆`, S.bold), null, null,
     f(`SUM(E${first}:E${last})`, d.days.reduce((a, x) => a + (x.minutes > 0 ? Math.round(x.minutes / 60 * 100) / 100 : 0), 0), S.dec),
-    str(fmtDuration(d.totalMinutes), S.bold), f(`SUM(G${first}:G${last})`, d.totalTrips, S.dec), f(`SUM(H${first}:H${last})`, d.totalNight)]);
+    str(fmtDuration(d.totalMinutes), S.bold), str(d.totalTrips, S.bold), f(`SUM(H${first}:H${last})`, d.totalNight)]);
 
   const r2 = [[str(d.title, S.title)], [], [str('收入項目', S.header), str('金額 (NT$)', S.header)]];
   const is = r2.length + 1; d.income.forEach((x) => r2.push([str(x.label), n(x.amount, S.money)])); const ie = r2.length;
@@ -113,7 +113,7 @@ export function statementXlsx(d) {
     { name: 'xl/workbook.xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="每日明細" sheetId="1" r:id="rId1"/><sheet name="薪資明細" sheetId="2" r:id="rId2"/></sheets></workbook>' },
     { name: 'xl/_rels/workbook.xml.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
     { name: 'xl/styles.xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0"/><numFmt numFmtId="165" formatCode="0.##"/></numFmts><fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="14"/><color rgb="FF1565C0"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE3EDF8"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style="thin"><color rgb="FF9E9E9E"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="164" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>' },
-    { name: 'xl/worksheets/sheet1.xml', text: sheet(r1, [12, 6, 14, 14, 11, 11, 7, 7, 16, 30], 4) },
+    { name: 'xl/worksheets/sheet1.xml', text: sheet(r1, [12, 6, 14, 14, 11, 11, 18, 7, 16, 30], 4) },
     { name: 'xl/worksheets/sheet2.xml', text: sheet(r2, [38, 16], 0) },
   ]);
 }
@@ -122,11 +122,11 @@ export function statementXlsx(d) {
 const h = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const money = (v) => 'NT$ ' + Math.round(v).toLocaleString('en-US');
 export function statementHtml(d) {
-  const rows = d.days.map((x) => `<tr><td>${h(x.dateText.slice(5))}</td><td>${h(x.weekday)}</td><td>${h(x.start)}</td><td>${h(x.end)}</td><td class="r">${h(x.hoursText)}</td><td class="r">${x.trips ? fmtNum(x.trips) : ''}</td><td class="r">${x.night || ''}</td><td>${h(x.tags)}</td><td>${h(x.remarks)}</td></tr>`).join('');
+  const rows = d.days.map((x) => `<tr><td>${h(x.dateText.slice(5))}</td><td>${h(x.weekday)}</td><td>${h(x.start)}</td><td>${h(x.end)}</td><td class="r">${h(x.hoursText)}</td><td>${h(x.trips)}</td><td class="r">${x.night || ''}</td><td>${h(x.tags)}</td><td>${h(x.remarks)}</td></tr>`).join('');
   const sec = (title, list, totalLabel, total, minus) => `<h3>${title}</h3><table class="money">${list.filter((x) => x.amount).map((x) => `<tr><td>${h(x.label)}</td><td class="r">${minus ? '- ' : ''}${money(x.amount)}</td></tr>`).join('')}<tr class="b"><td>${totalLabel}</td><td class="r">${minus ? '- ' : ''}${money(total)}</td></tr></table>`;
   return `<div class="stmt"><h1>${h(d.title)}</h1><p class="sub">計酬區間：${h(d.rangeText)}　產生時間：${new Date().toLocaleString('zh-TW')}</p>
-<h3>每日明細</h3><table class="days"><thead><tr><th>日期</th><th>星期</th><th>上班</th><th>下班</th><th>工時</th><th>趟數</th><th>夜點</th><th>註記</th><th>備註</th></tr></thead><tbody>${rows}</tbody>
-<tfoot><tr><td>合計</td><td>${d.days.length} 筆</td><td></td><td></td><td class="r">${fmtDuration(d.totalMinutes)}</td><td class="r">${fmtNum(d.totalTrips)}</td><td class="r">${d.totalNight}</td><td></td><td></td></tr></tfoot></table>
+<h3>每日明細</h3><table class="days"><thead><tr><th>日期</th><th>星期</th><th>上班</th><th>下班</th><th>工時</th><th>車趟</th><th>夜點</th><th>註記</th><th>備註</th></tr></thead><tbody>${rows}</tbody>
+<tfoot><tr><td>合計</td><td>${d.days.length} 筆</td><td></td><td></td><td class="r">${fmtDuration(d.totalMinutes)}</td><td>${h(d.totalTrips)}</td><td class="r">${d.totalNight}</td><td></td><td></td></tr></tfoot></table>
 ${sec('收入項目', d.income, '月薪合計', d.gross, false)}${sec('扣款項目', d.deductions, '扣款合計', d.deduction, true)}
 <p class="net">本月實領　<b>${money(d.net)}</b></p>${d.law ? lawHtml(d.law) : ''}</div>`;
 }

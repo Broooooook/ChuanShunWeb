@@ -2,7 +2,9 @@
 import { h, toast, openDialog, confirmDialog, appBar, section, comboField } from './dom.js';
 import { buildBackup, parseBackup, applyDefaultRates } from '../core/backup.js';
 import { saveFile, pickTextFile } from './files.js';
-import { fmtDate, todayEpochDay } from '../core/date.js';
+import { fmtDate, todayEpochDay, monthKey } from '../core/date.js';
+import { RATE_FIELDS, tripRatesOf } from '../core/trips.js';
+import { billingMonthOf, billingRangeStr, effectiveEndDay } from '../core/billing.js';
 import { addOption } from './tripDialog.js';
 import { APP_VERSION } from '../app.js';
 
@@ -103,12 +105,34 @@ export function renderSettings(ctx) {
     return d;
   };
   const setColor = (key) => (hex) => ctx.mutate((x) => { x.settings[key] = hex; });
-  const rateField = (key, label) => h('label', { class: 'field' }, h('span', {}, label),
-    h('input', { class: 'input', type: 'number', inputmode: 'numeric', min: 0, value: s.salaryInfo?.[key] ?? 0,
-      onchange: (e) => ctx.mutate((x) => { x.settings.salaryInfo = { ...x.settings.salaryInfo, [key]: parseInt(e.target.value, 10) || 0 }; }) }));
+  // 車趟獎金單價（依區域）：所有月份一律用這裡的單價計算
+  const rates = tripRatesOf(s);
+  const rateField = (key, label) => h('label', { class: 'field rate-field' }, h('span', {}, label),
+    h('input', { class: 'input', type: 'number', inputmode: 'numeric', min: 0, value: key === 'plant' && !rates.plant ? '' : rates[key], placeholder: '未設定',
+      onchange: (e) => ctx.mutate((x) => { x.settings.tripRates = { ...tripRatesOf(x.settings), [key]: Math.max(0, parseInt(e.target.value, 10) || 0) }; }) }));
+  // 計酬區間：從目前這個計酬月起生效（之前月份不變）
+  const curBm = billingMonthOf(todayEpochDay(), s.billingStartDaysMap, s.billingStartDay);
+  const curKey = monthKey(curBm.y, curBm.m);
+  const endDay = effectiveEndDay(curBm.y, curBm.m, s.billingStartDaysMap, s.billingStartDay);
+  const endDayField = h('label', { class: 'field' }, h('span', {}, '每月結算日（幾號，1~31）'),
+    h('input', { class: 'input', type: 'number', inputmode: 'numeric', min: 1, max: 31, value: endDay,
+      onchange: (e) => {
+        const n = parseInt(e.target.value, 10);
+        if (!(n >= 1 && n <= 31)) { e.target.value = endDay; return; }
+        ctx.mutate((x) => {
+          const map = Object.fromEntries(Object.entries(x.settings.billingStartDaysMap || {}).filter(([k]) => k < curKey));
+          x.settings.billingStartDaysMap = { ...map, [curKey]: n };
+        });
+      } }));
 
   return h('div', { class: 'stack' },
     appBar('設定'),
+    sec('pay', '車趟獎金單價與計酬區間',
+      h('p', { class: 'tiny-text secondary-text' }, '每一趟依區域計算獎金；2X／3X 時區域和特殊趟的獎金乘 2 或乘 3，超時趟不加倍。改了單價，所有月份都會用新的單價重算。'),
+      h('div', { class: 'rate-grid' }, RATE_FIELDS.map(([k, l]) => rateField(k, l + '（元）'))),
+      h('hr'),
+      endDayField,
+      h('p', { class: 'tiny-text secondary-text' }, `目前計酬月份：${curBm.y} 年 ${curBm.m} 月（${billingRangeStr(curBm.y, curBm.m, s.billingStartDaysMap, s.billingStartDay)}）。改結算日會從這個計酬月開始生效，之前的月份不變。`)),
     sec('appearance', '外觀',
       h('div', { class: 'seg' }, [['LIGHT', '淺色'], ['DARK', '深色'], ['SYSTEM', '跟隨手機']].map(([k, l]) =>
         h('button', { type: 'button', class: 'seg-btn' + ((s.theme || 'LIGHT') === k ? ' on' : ''), onclick: () => ctx.mutate((x) => { x.settings.theme = k; }) }, l))),
@@ -128,10 +152,6 @@ export function renderSettings(ctx) {
       h('div', {}, h('div', { class: 'field-label' }, '預設搭檔'), comboField(names('drivers'), s.defaultDriver, (v) => { ctx.state.settings.defaultDriver = v; ctx.save(); }, (n) => addOption(ctx.state, 'drivers', n))),
       h('div', {}, h('div', { class: 'field-label' }, '預設目的地'), comboField(names('destinations'), s.defaultDestination, (v) => { ctx.state.settings.defaultDestination = v; ctx.save(); }, (n) => addOption(ctx.state, 'destinations', n))),
       h('div', {}, h('div', { class: 'field-label' }, '預設酸別'), comboField(names('acidTypes'), s.defaultAcidType, (v) => { ctx.state.settings.defaultAcidType = v; ctx.save(); }, (n) => addOption(ctx.state, 'acidTypes', n)))),
-    sec('bonus', '獎金基數設定 (變動自動儲存)',
-      rateField('tripBonusRate', '每車趟獎金 (元)'),
-      rateField('nightShiftBonusRate', '每夜點獎金 (元)'),
-      h('p', { class: 'tiny-text secondary-text' }, '若在「統計 → 薪資明細」修改過某個月的金額，該月起會以那裡的金額為準。')),
     sec('backup', '資料管理與備份',
       h('p', { class: 'small muted' }, '備份包含所有打卡記錄、薪資設定與清單自定義。建議定期匯出存檔。備份檔與 Android App 格式相同，可互相匯入。'),
       h('div', { class: 'row-between line' }, h('span', {}, '上次備份'), h('b', { class: last && Date.now() - last < 7 * 86400000 ? 'good' : 'error-text' }, lastText)),

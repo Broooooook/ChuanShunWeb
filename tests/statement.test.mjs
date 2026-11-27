@@ -16,7 +16,7 @@ test('xlsx 對帳單可產生', () => {
   ];
   const sal = { ...emptySalary(), baseSalary: 30000, foodAllowance: 3000, laborInsurance: 800, tripBonusRate: 400, nightShiftBonusRate: 300 };
   const sum = monthSummary(records, sal);
-  assert.equal(sum.tripBonus, 600); assert.equal(sum.net, 33100);
+  assert.equal(sum.tripBonus, 550); assert.equal(sum.net, 33050);
   const st = buildStatement({ y: 2026, m: 11, rangeText: '10/26 ~ 11/25', records, salary: sal, summary: sum, law: buildLawSection(lawCalc(records, 33000, 60, 'MARKS'), 60, 'MARKS') });
   assert.ok(st.law.totalPay > 0); assert.equal(st.lawPay, st.law.totalPay);
   assert.ok(st.law.summary.some(([k]) => k === '依法應得加班費合計')); assert.ok(st.law.days.length >= 1);

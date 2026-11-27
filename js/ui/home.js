@@ -2,10 +2,9 @@
 import { h, toast, openDialog, money, appBar, columnStepper, checkRow } from './dom.js';
 import { activeRecord, clockIn, clockOut, updateStatus, addTrip, updateTrip, deleteTrip } from '../core/actions.js';
 import { workMinutes } from '../core/shift.js';
-import { overtimeMultiplier, recordTripCount, recordExtraBonus, fmtNum } from '../core/trips.js';
+import { overtimeMultiplier, recordTripCount, recordTripBonus, areaCounts, areaCountsText, tripRatesOf, fmtNum } from '../core/trips.js';
 import { fmtTime, fmtDuration, todayEpochDay, monthKey, ymdOf } from '../core/date.js';
 import { billingMonthOf, isBillingLastDay } from '../core/billing.js';
-import { effectiveSalary } from '../core/salary.js';
 import { openTripDialog, tripItem } from './tripDialog.js';
 
 const WEEK = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
@@ -96,20 +95,20 @@ export function renderHome(ctx) {
 
   // ── 今日統計
   const mult = r ? overtimeMultiplier(r.is2xOvertime, r.is3xOvertime) : 1;
-  const bm = billingMonthOf(r?.date ?? today, s.billingStartDaysMap, s.billingStartDay);
-  const sal = effectiveSalary(monthKey(bm.y, bm.m), st.monthlySalaries, s.salaryInfo);
   const total = r ? recordTripCount(r) : 0;
   const mins = r ? workMinutes(r) : 0;
   const avg = total > 0 && r?.startTime != null ? Math.floor(mins / total) : null;
-  const bonus = Math.trunc(total * sal.tripBonusRate) + (r ? recordExtraBonus(r) : 0) + (r?.nightShiftCount || 0) * sal.nightShiftBonusRate;
+  const rates = tripRatesOf(s);
+  const bonus = Math.trunc((r ? recordTripBonus(r, rates) : 0) + (r?.nightShiftCount || 0) * rates.night);
+  const countsText = r ? areaCountsText(areaCounts([r])) : '';
   const line = (a, b) => h('div', { class: 'row-between line' }, h('span', {}, a), h('b', {}, b));
   const summary = h('section', { class: 'card bg-tertiary-soft' },
     h('div', { class: 'title-md b' }, '今日統計'), h('hr'),
     line('累計工時', fmtDuration(mins)),
-    h('div', { class: 'row-between line' }, h('div', {}, '累計車趟', h('div', { class: 'formula' }, `(趟數+特殊)${mult > 1 ? '×' + mult : ''}+超時`)), h('b', {}, fmtNum(total) + ' 趟')),
+    h('div', { class: 'row-between line' }, h('div', {}, '累計車趟', mult > 1 ? h('div', { class: 'formula' }, `獎金×${mult}（超時不加倍）`) : null), h('b', {}, countsText || '0 趟')),
     line('平均時/趟', avg == null ? '--:--' : h('span', { class: avg > 199 ? 'error-text' : avg >= 1 && avg < 160 ? 'good' : '' }, fmtDuration(avg))),
     line('夜點', `${r?.nightShiftCount || 0} 次`), h('hr'),
-    h('div', { class: 'row-between' }, h('span', { class: 'title-lg' }, '今日預估獎金'), h('span', { class: 'bonus' }, st.meta?.salaryHidden ? 'NT$ ****' : money(bonus))));
+    h('div', { class: 'row-between' }, h('span', { class: 'title-lg' }, '今日預估獎金'), h('span', { class: 'bonus' }, money(bonus))));
 
   return h('div', { class: 'stack' }, appBar('本日工作'), statusCard, taskCard, notShippedBtn, summary);
 }
@@ -121,7 +120,7 @@ function confirmClockOut(ctx, r) {
     title: '確認結束班次',
     body: h('div', { class: 'stack' }, h('p', {}, '請確認今天的排程與班次資料。下班後仍可從「記錄」頁修改。'),
       h('div', { class: 'summary-box' }, line('上班時間', fmtTime(r.startTime)), line('目前工時', fmtDuration(workMinutes(r))),
-        line('排程項目', `${r.trips.length} 項／${fmtNum(total)} 趟`), r.nightShiftCount ? line('夜點', `${r.nightShiftCount} 次`) : null)),
+        line('排程項目', `${r.trips.length} 項${total ? '（' + areaCountsText(areaCounts([r])) + '）' : ''}`), r.nightShiftCount ? line('夜點', `${r.nightShiftCount} 次`) : null)),
     buttons: [{ label: '繼續編輯' }, { label: '確認下班', kind: 'danger', onClick: async () => {
       let done = null;
       await ctx.mutate((x) => { done = clockOut(x); });

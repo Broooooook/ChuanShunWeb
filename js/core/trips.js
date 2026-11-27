@@ -1,28 +1,63 @@
 // 車趟／加班倍率（對應 Android TripStats）。2X 與 3X 互斥，3X 優先。
 export const overtimeMultiplier = (is2x, is3x) => (is3x ? 3 : is2x ? 2 : 1);
-// 林口區：資料仍記成 1.5（舊資料、備份、Android 相容），但算成「1 趟＋200 元」，加班日 200 也乘倍數
-export const LINKOU_CODE = 1.5;
-export const LINKOU_EXTRA_BONUS = 200;
-export const isLinkou = (t) => Math.abs((t.tripCount || 0) - LINKOU_CODE) < 0.001;
-export const areaTrips = (t) => (isLinkou(t) ? 1 : (t.tripCount || 0));
-export const tripWeighted = (t, mult) => (areaTrips(t) + (t.specialCount || 0)) * mult + (t.overtimeCount || 0);
-export const tripExtraBonus = (t, mult) => (isLinkou(t) ? LINKOU_EXTRA_BONUS * mult : 0);
-export function recordExtraBonus(r) {
-  const mult = overtimeMultiplier(r.is2xOvertime, r.is3xOvertime);
-  return (r.trips || []).reduce((a, t) => a + tripExtraBonus(t, mult), 0);
+// 車趟區域（對應 Android TripStats）。資料裡仍用 tripCount 記區域代碼，舊紀錄、備份、Android 互通都不用改：
+// 1＝北部、1.5＝林口、2＝中部、3＝南部、0.5＝廠內。獎金依各區單價計算（設定 → 車趟獎金單價）。
+export const AREAS = [
+  { key: 'north', label: '北部', code: 1 },
+  { key: 'linkou', label: '林口', code: 1.5 },
+  { key: 'central', label: '中部', code: 2 },
+  { key: 'south', label: '南部', code: 3 },
+  { key: 'plant', label: '廠內', code: 0.5 },
+];
+/** 預設單價（使用者指定）。廠內未定，先算 0 元 */
+export const DEFAULT_TRIP_RATES = { north: 350, linkou: 550, central: 700, south: 1050, plant: 0, special: 350, overtime: 350, night: 300 };
+export const RATE_FIELDS = [...AREAS.map((a) => [a.key, a.label]), ['special', '特殊趟'], ['overtime', '超時趟'], ['night', '夜點']];
+export const tripRatesOf = (settings) => ({ ...DEFAULT_TRIP_RATES, ...(settings?.tripRates || {}) });
+
+/** 這一趟屬於哪一區；tripCount 不是已知代碼但大於 0 時（很舊的資料）當作北部；0 代表沒有區域 */
+export function areaOf(t) {
+  const c = t.tripCount || 0;
+  if (c <= 0) return null;
+  return AREAS.find((a) => Math.abs(a.code - c) < 0.001) || AREAS[0];
 }
+export const isLinkou = (t) => areaOf(t)?.key === 'linkou';
+/** 一趟的獎金：(區域單價＋特殊趟×特殊單價)×2X/3X 倍數＋超時趟×超時單價（超時不乘倍數） */
+export function tripBonus(t, mult, rates) {
+  const a = areaOf(t);
+  const area = a ? (rates[a.key] || 0) : 0;
+  return (area + (t.specialCount || 0) * (rates.special || 0)) * mult + (t.overtimeCount || 0) * (rates.overtime || 0);
+}
+export function recordTripBonus(r, rates) {
+  const mult = overtimeMultiplier(r.is2xOvertime, r.is3xOvertime);
+  return (r.trips || []).reduce((a, t) => a + tripBonus(t, mult, rates), 0);
+}
+/** 車趟次數（每一趟算 1 次，不乘倍數；特殊、超時另外計） */
 export function recordTripCount(r) {
-  const mult = overtimeMultiplier(r.is2xOvertime, r.is3xOvertime);
-  return (r.trips || []).reduce((a, t) => a + tripWeighted(t, mult), 0);
+  return (r.trips || []).reduce((a, t) => a + (areaOf(t) ? 1 : 0), 0);
 }
-/** mode: 'count'（目的地／酸別：出現次數）或 'weighted'（搭檔：加成後趟數） */
-export function aggregateBy(records, keyFn, orderMap = {}, mode = 'count') {
+/** 各區域、特殊、超時的次數 */
+export function areaCounts(records) {
+  const c = Object.fromEntries([...AREAS.map((a) => [a.key, 0]), ['special', 0], ['overtime', 0]]);
+  for (const r of records) for (const t of r.trips || []) {
+    const a = areaOf(t);
+    if (a) c[a.key]++;
+    c.special += t.specialCount || 0;
+    c.overtime += t.overtimeCount || 0;
+  }
+  return c;
+}
+/** 例：「北部 3・中部 1・特殊 1」；都沒有時回傳空字串 */
+export function areaCountsText(c) {
+  return [...AREAS.map((a) => [a.label, c[a.key]]), ['特殊', c.special], ['超時', c.overtime]]
+    .filter(([, n]) => n > 0).map(([l, n]) => `${l} ${fmtNum(n)}`).join('・');
+}
+/** 依目的地／酸別／搭檔統計出現次數 */
+export function aggregateBy(records, keyFn, orderMap = {}) {
   const map = new Map();
   for (const r of records) {
-    const mult = overtimeMultiplier(r.is2xOvertime, r.is3xOvertime);
     for (const t of r.trips || []) {
       const key = (keyFn(t) || '').trim() || '(空白)';
-      map.set(key, (map.get(key) || 0) + (mode === 'count' ? 1 : tripWeighted(t, mult)));
+      map.set(key, (map.get(key) || 0) + 1);
     }
   }
   const big = Number.MAX_SAFE_INTEGER;
@@ -30,5 +65,5 @@ export function aggregateBy(records, keyFn, orderMap = {}, mode = 'count') {
     ((orderMap[a[0]] ?? big) - (orderMap[b[0]] ?? big)) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
 }
 export const fmtNum = (v) => (Math.abs(v % 1) < 1e-9 ? String(Math.round(v)) : String(Math.round(v * 100) / 100));
-/** 畫面上顯示的區域趟數（林口顯示「1+200」） */
-export const tripCountLabel = (t) => (isLinkou(t) ? `1+${LINKOU_EXTRA_BONUS}` : fmtNum(t.tripCount || 0));
+/** 畫面上顯示的區域名稱 */
+export const tripCountLabel = (t) => areaOf(t)?.label ?? '—';

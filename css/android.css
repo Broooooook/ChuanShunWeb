@@ -96,7 +96,7 @@
 .combo-item.add { color: var(--primary); font-weight: 700; }
 .combo-empty { padding: 12px 14px; color: var(--muted); font-size: 14px; }
 .field-label { font-size: 12px; color: var(--primary); font-weight: 600; margin-bottom: 4px; }
-.area-box { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: color-mix(in srgb, var(--surface-variant) 30%, transparent); border-radius: 8px; padding: 4px; }
+.area-box { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; background: color-mix(in srgb, var(--surface-variant) 30%, transparent); border-radius: 8px; padding: 4px; }
 .area-check { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
 .area-check input { width: 20px; height: 20px; accent-color: var(--primary); }
 .area-check.on { background: var(--primary-container); font-weight: 700; }
@@ -149,3 +149,4 @@ details.section[open] > summary::after { transform: rotate(180deg); }
 .slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 6px; top: 6px; background: var(--outline); border-radius: 50%; transition: .2s; }
 .switch input:checked + .slider { background: var(--primary); border-color: var(--primary); }
 .switch input:checked + .slider::before { transform: translateX(20px); width: 24px; height: 24px; top: 2px; left: 2px; background: var(--on-primary); }
+.rate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }

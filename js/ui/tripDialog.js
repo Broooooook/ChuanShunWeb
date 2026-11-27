@@ -2,9 +2,9 @@
 import { h, openDialog, comboField, rowStepper, checkRow, toast, optionColor } from './dom.js';
 import { uuid } from '../core/backup.js';
 import { rememberedTripCount } from '../core/actions.js';
-import { fmtNum, tripCountLabel } from '../core/trips.js';
+import { fmtNum, tripCountLabel, AREAS as TRIP_AREAS } from '../core/trips.js';
 
-export const AREAS = [['北部 (1)', 1], ['林口 (1+200)', 1.5], ['中部 (2)', 2], ['南部 (3)', 3]];
+export const AREAS = TRIP_AREAS.map((a) => [a.label, a.code]);
 const names = (list) => [...(list || [])].sort((a, b) => a.order - b.order).map((o) => o.name);
 
 export function addOption(state, key, name) {
@@ -57,7 +57,7 @@ export function openTripDialog(ctx, { initial = null, template = null, defaultDr
     h('div', {}, label('目的地'), comboField(names(s.destinations), t.destination, (v) => { t.destination = v; if (changed('destination')) applyMemory(); }, add('destinations'))),
     h('div', {}, label('主要酸別'), comboField(names(s.acidTypes), t.acidType, (v) => { t.acidType = v; if (changed('acidType')) applyMemory(); }, add('acidTypes'))),
     h('div', {}, label('搭檔'), comboField(names(s.drivers), t.driverName, (v) => { t.driverName = v; }, add('drivers'))),
-    label('車趟區域 (趟數)'), areaBox,
+    label('車趟區域'), areaBox,
     rowStepper('特殊趟', t.specialCount, (v) => (t.specialCount = v)),
     rowStepper('超時趟', t.overtimeCount, (v) => (t.overtimeCount = v)),
     checkRow('標記注意 (★)', t.isImportant, (v) => (t.isImportant = v)),

@@ -73,6 +73,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; width: 100%; }
 .month-nav { display: flex; align-items: center; justify-content: space-between; }
 .range-pill { align-self: center; border: 0; background: #ffebee; color: #c62828; font-weight: 800; padding: 8px 14px; border-radius: 10px; cursor: pointer; }
 [data-theme="dark"] .range-pill { background: #4a1f22; color: #ffb4ab; }
+div.range-pill { cursor: default; }
 .day-card { cursor: pointer; }
 .day-card.tinted { background: var(--tint); color: #1c1b1f; }
 .day-card.tinted .muted { color: #4a4458; }

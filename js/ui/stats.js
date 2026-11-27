@@ -1,10 +1,10 @@
 // 統計：月／年摘要、每日工時圖、分類統計、薪資明細、勞基法試算、匯出對帳單
 import { h, openDialog, promptDialog, money, toast, appBar } from './dom.js';
-import { billingRange, billingRangeStr, billingMonthOf, effectiveEndDay } from '../core/billing.js';
+import { billingRange, billingRangeStr, billingMonthOf } from '../core/billing.js';
 import { addMonths, monthKey, todayEpochDay, fmtDuration, ymdOf, fmtDate, weekdayLabel } from '../core/date.js';
 import { workMinutes, isDraft, splitToDaySegments } from '../core/shift.js';
-import { recordTripCount, aggregateBy, fmtNum } from '../core/trips.js';
-import { effectiveSalary, monthSummary, INCOME, DEDUCTIONS, RATES, SALARY_FIELDS } from '../core/salary.js';
+import { recordTripCount, aggregateBy, fmtNum, areaCounts, AREAS, tripRatesOf } from '../core/trips.js';
+import { effectiveSalary, monthSummary, INCOME, DEDUCTIONS, SALARY_FIELDS } from '../core/salary.js';
 import * as Law from '../core/labor.js';
 import { buildStatement, buildLawSection, statementXlsx, statementHtml } from '../core/statement.js';
 import { saveFile } from './files.js';
@@ -21,6 +21,11 @@ export function renderStats(ctx) {
 
 const line = (a, b, cls = '') => h('div', { class: 'row-between line ' + cls }, h('span', {}, a), h('span', {}, b));
 const hoursFmt = (h1) => `${h1.toFixed(1)} 小時 (${(h1 / 8).toFixed(1)} 日)`;
+/** 各區域車趟次數（沒有的不顯示；全部都沒有時顯示 0） */
+const countLines = (c) => {
+  const rows = [...AREAS.map((a) => [`${a.label}車趟`, c[a.key]]), ['特殊趟', c.special], ['超時趟', c.overtime]].filter(([, n]) => n > 0);
+  return rows.length ? rows.map(([l, n]) => line(l, `${fmtNum(n)} 次`)) : [line('車趟', '0 次')];
+};
 const orderOf = (s, key) => Object.fromEntries((s[key] || []).map((o) => [o.name, o.order]));
 
 function monthView(ctx, v, hidden) {
@@ -29,21 +34,15 @@ function monthView(ctx, v, hidden) {
   const range = billingRange(v.y, v.m, s.billingStartDaysMap, s.billingStartDay);
   const recs = st.workRecords.filter((r) => r.date >= range.start && r.date <= range.end && !isDraft(r));
   const sal = effectiveSalary(mKey, st.monthlySalaries, s.salaryInfo);
-  const sum = monthSummary(recs, sal);
+  const sum = monthSummary(recs, sal, tripRatesOf(s));
   const days = recs.filter((r) => r.startTime != null || r.isOffDay).length;
   const mins = recs.reduce((a, r) => a + workMinutes(r), 0);
   const yearUsed = st.workRecords.filter((r) => !isDraft(r) && billingMonthOf(r.date, s.billingStartDaysMap, s.billingStartDay).y === v.y).reduce((a, r) => a + (r.specialLeaveHours || 0), 0);
   const monthUsed = recs.reduce((a, r) => a + (r.specialLeaveHours || 0), 0);
   const nav = (d) => () => { Object.assign(v, addMonths(v.y, v.m, d)); ctx.render(); };
-  const m$ = (x) => (hidden ? 'NT$ ****' : money(x));
+  // 眼睛按鈕只遮本薪（和 Android 一樣：本薪、勞基法試算金額、年度實領）
+  const m$ = (x) => money(x);
 
-  const editEndDay = async () => {
-    const cur = effectiveEndDay(v.y, v.m, s.billingStartDaysMap, s.billingStartDay);
-    const val = await promptDialog(`${v.m} 月的計酬結算日`, { label: '每月幾號結算（1~31），從這個月開始生效', value: String(cur), inputmode: 'numeric' });
-    const n = parseInt(val, 10);
-    if (!(n >= 1 && n <= 31)) return;
-    ctx.mutate((x) => { x.settings.billingStartDaysMap = { ...x.settings.billingStartDaysMap, [mKey]: n }; });
-  };
   const editSalary = async (key, label) => {
     const val = await promptDialog(label, { label: `只改 ${v.y} 年 ${v.m} 月起的金額（之前月份不變）`, value: String(sal[key] ?? 0), inputmode: 'decimal' });
     if (val == null) return;
@@ -65,13 +64,14 @@ function monthView(ctx, v, hidden) {
       h('button', { class: 'icon-btn', type: 'button', onclick: nav(-1) }, '‹'),
       h('div', { class: 'center' }, h('b', {}, `${v.y} 年 ${v.m} 月 計酬月份`)),
       h('button', { class: 'icon-btn', type: 'button', onclick: nav(1) }, '›')),
-    h('button', { class: 'range-pill', type: 'button', onclick: editEndDay }, `計酬區間：${billingRangeStr(v.y, v.m, s.billingStartDaysMap, s.billingStartDay)} ✎`),
+    h('div', { class: 'range-pill' }, `計酬區間：${billingRangeStr(v.y, v.m, s.billingStartDaysMap, s.billingStartDay)}`),
     h('section', { class: 'card' },
       h('div', { class: 'card-title' }, '當月摘要'),
-      line('出勤班次', `${days} 班`), line('總工時', fmtDuration(mins)), line('總車趟數', `${fmtNum(sum.trips)} 趟`),
+      line('出勤班次', `${days} 班`), line('總工時', fmtDuration(mins)),
+      ...countLines(sum.counts),
       line('平均每日工時', `${days ? (mins / 60 / days).toFixed(1) : '0.0'} 小時`),
       line('平均每趟工時', sum.trips > 0 ? fmtDuration(mins / sum.trips) : '00:00'),
-      line('平均每日趟數', `${days ? (sum.trips / days).toFixed(1) : '0.0'} 趟`),
+      line('平均每日車趟', `${days ? (sum.trips / days).toFixed(1) : '0.0'} 趟`),
       line('夜點', `${sum.night} 次`), h('hr'),
       line(h('b', {}, '本月實領薪資'), h('b', { class: 'accent' }, m$(sum.net))), h('hr'),
       line('特休・本月已用', hoursFmt(monthUsed)), line('特休・今年已用', hoursFmt(yearUsed)),
@@ -81,17 +81,16 @@ function monthView(ctx, v, hidden) {
     barList('目的地統計（次數）', aggregateBy(recs, (t) => t.destination, orderOf(s, 'destinations'))),
     h('div', { class: 'grid2' },
       barList('酸別統計（次數）', aggregateBy(recs, (t) => t.acidType, orderOf(s, 'acidTypes'))),
-      barList('搭檔統計（加成趟）', aggregateBy(recs, (t) => t.driverName, orderOf(s, 'drivers'), 'weighted'))),
+      barList('搭檔統計（次數）', aggregateBy(recs, (t) => t.driverName, orderOf(s, 'drivers')))),
     h('section', { class: 'card tonal2' },
       h('div', { class: 'card-title' }, '薪資明細', h('small', { class: 'muted' }, '（點項目可修改本月起的金額）')),
       h('div', { class: 'muted small' }, '收入項目'),
-      INCOME.map(([k, l]) => edit(k, l, m$(sal[k] || 0))),
-      RATES.map(([k, l]) => edit(k, l, m$(sal[k] || 0))),
+      INCOME.map(([k, l]) => edit(k, l, k === 'baseSalary' && hidden ? 'NT$ ****' : m$(sal[k] || 0))),
       line('車趟獎金', m$(sum.tripBonus)), line('夜點獎金', m$(sum.nightBonus)),
       line(h('b', {}, '月薪合計'), h('b', {}, m$(sum.gross))), h('hr'),
       h('div', { class: 'muted small bad' }, '扣款項目'),
-      DEDUCTIONS.map(([k, l]) => edit(k, l, hidden ? 'NT$ ****' : '- ' + money(sal[k] || 0))),
-      line(h('b', {}, '扣款合計'), h('b', {}, hidden ? 'NT$ ****' : '- ' + money(sum.deduction)))),
+      DEDUCTIONS.map(([k, l]) => edit(k, l, '- ' + money(sal[k] || 0))),
+      line(h('b', {}, '扣款合計'), h('b', {}, '- ' + money(sum.deduction)))),
     h('button', { class: 'btn wide primary', type: 'button', onclick: () => exportChooser(ctx, v, recs, sal, sum) }, '🧾 匯出本月薪資對帳單'),
     laborCard(ctx, recs, sal, sum, hidden));
 }
@@ -234,9 +233,9 @@ function yearView(ctx, v, hidden) {
   recs.forEach((r) => { const bm = billingMonthOf(r.date, s.billingStartDaysMap, s.billingStartDay); const k = monthKey(bm.y, bm.m); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(r); });
   let net = 0; const monthRows = [];
   [...byMonth.keys()].sort().forEach((k) => {
-    const sm = monthSummary(byMonth.get(k), effectiveSalary(k, st.monthlySalaries, s.salaryInfo));
+    const sm = monthSummary(byMonth.get(k), effectiveSalary(k, st.monthlySalaries, s.salaryInfo), tripRatesOf(s));
     net += sm.net;
-    monthRows.push(line(`${parseInt(k.slice(5), 10)} 月（${fmtNum(sm.trips)} 趟）`, hidden ? 'NT$ ****' : money(sm.net)));
+    monthRows.push(line(`${parseInt(k.slice(5), 10)} 月（${fmtNum(sm.trips)} 趟）`, money(sm.net)));
   });
   const days = recs.filter((r) => r.startTime != null || r.isOffDay).length;
   const mins = recs.reduce((a, r) => a + workMinutes(r), 0);
@@ -250,10 +249,11 @@ function yearView(ctx, v, hidden) {
       h('button', { class: 'icon-btn', type: 'button', onclick: () => { v.year++; ctx.render(); } }, '›')),
     h('section', { class: 'card' },
       h('div', { class: 'card-title' }, '年度摘要'),
-      line('總出勤班次', `${days} 班`), line('總工時', fmtDuration(mins)), line('總車趟數', `${fmtNum(trips)} 趟`),
+      line('總出勤班次', `${days} 班`), line('總工時', fmtDuration(mins)),
+      ...countLines(areaCounts(recs)),
       line('平均每日工時', `${days ? (mins / 60 / days).toFixed(1) : '0.0'} 小時`),
       line('平均每趟工時', trips > 0 ? fmtDuration(mins / trips) : '00:00'),
-      line('平均每日趟數', `${days ? (trips / days).toFixed(1) : '0.0'} 趟`),
+      line('平均每日車趟', `${days ? (trips / days).toFixed(1) : '0.0'} 趟`),
       line('總夜點', `${recs.reduce((a, r) => a + (r.nightShiftCount || 0), 0)} 次`), h('hr'),
       line(h('b', {}, '年度實領總薪資'), h('b', { class: 'accent' }, hidden ? 'NT$ ****' : money(net))),
       monthRows.length ? h('details', {}, h('summary', {}, '各月實領'), monthRows) : null, h('hr'),
@@ -261,5 +261,5 @@ function yearView(ctx, v, hidden) {
     barList('目的地統計（次數）', aggregateBy(recs, (t) => t.destination, orderOf(s, 'destinations'))),
     h('div', { class: 'grid2' },
       barList('酸別統計（次數）', aggregateBy(recs, (t) => t.acidType, orderOf(s, 'acidTypes'))),
-      barList('搭檔統計（加成趟）', aggregateBy(recs, (t) => t.driverName, orderOf(s, 'drivers'), 'weighted'))));
+      barList('搭檔統計（次數）', aggregateBy(recs, (t) => t.driverName, orderOf(s, 'drivers')))));
 }
