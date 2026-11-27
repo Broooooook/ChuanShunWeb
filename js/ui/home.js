@@ -2,7 +2,7 @@
 import { h, toast, openDialog, money, appBar, columnStepper, checkRow } from './dom.js';
 import { activeRecord, clockIn, clockOut, updateStatus, addTrip, updateTrip, deleteTrip } from '../core/actions.js';
 import { workMinutes } from '../core/shift.js';
-import { overtimeMultiplier, recordTripCount, recordTripBonus, areaCounts, areaCountsText, tripRatesOf, fmtNum } from '../core/trips.js';
+import { overtimeMultiplier, recordTripCount, recordTripBonus, areaCounts, areaCountsText, tripRatesOf, fmtNum, weightedTrips, multipliedAreaCounts } from '../core/trips.js';
 import { fmtTime, fmtDuration, todayEpochDay, monthKey, ymdOf } from '../core/date.js';
 import { billingMonthOf, isBillingLastDay } from '../core/billing.js';
 import { openTripDialog, tripItem } from './tripDialog.js';
@@ -95,17 +95,18 @@ export function renderHome(ctx) {
 
   // ── 今日統計
   const mult = r ? overtimeMultiplier(r.is2xOvertime, r.is3xOvertime) : 1;
-  const total = r ? recordTripCount(r) : 0;
+  // 累計車趟＝加權車趟，平均時/趟＝工時÷加權車趟（1.4.6 起）
+  const total = r ? weightedTrips([r]) : 0;
   const mins = r ? workMinutes(r) : 0;
   const avg = total > 0 && r?.startTime != null ? Math.floor(mins / total) : null;
   const rates = tripRatesOf(s);
   const bonus = Math.trunc((r ? recordTripBonus(r, rates) : 0) + (r?.nightShiftCount || 0) * rates.night);
-  const countsText = r ? areaCountsText(areaCounts([r])) : '';
+  const countsText = r ? areaCountsText(multipliedAreaCounts([r])) : '';
   const line = (a, b) => h('div', { class: 'row-between line' }, h('span', {}, a), h('b', {}, b));
   const summary = h('section', { class: 'card bg-tertiary-soft' },
     h('div', { class: 'title-md b' }, '今日統計'), h('hr'),
     line('累計工時', fmtDuration(mins)),
-    h('div', { class: 'row-between line' }, h('div', {}, '累計車趟', mult > 1 ? h('div', { class: 'formula' }, `獎金×${mult}（超時不加倍）`) : null), h('b', {}, countsText || '0 趟')),
+    h('div', { class: 'row-between line' }, h('div', {}, '累計車趟', countsText ? h('div', { class: 'formula' }, countsText + (mult > 1 ? `（×${mult}，超時不加倍）` : '')) : null), h('b', {}, `${fmtNum(total)} 趟`)),
     line('平均時/趟', avg == null ? '--:--' : h('span', { class: avg > 199 ? 'error-text' : avg >= 1 && avg < 160 ? 'good' : '' }, fmtDuration(avg))),
     line('夜點', `${r?.nightShiftCount || 0} 次`), h('hr'),
     h('div', { class: 'row-between' }, h('span', { class: 'title-lg' }, '今日預估獎金'), h('span', { class: 'bonus' }, money(bonus))));

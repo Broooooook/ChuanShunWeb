@@ -3,7 +3,7 @@ import { h, openDialog, toast, appBar, checkRow, columnStepper, timeInput, optio
 import { billingRange, billingRangeStr, billingMonthOf } from '../core/billing.js';
 import { addMonths, fmtTime, fmtDuration, todayEpochDay, toDateInput, fromDateInput, parseTimeInput, ymdOf } from '../core/date.js';
 import { workMinutes, isDraft, isLateStart } from '../core/shift.js';
-import { recordTripCount, areaCounts, areaCountsText, fmtNum, tripCountLabel } from '../core/trips.js';
+import { recordTripCount, areaCounts, areaCountsText, fmtNum, tripCountLabel, weightedTrips } from '../core/trips.js';
 import { check } from '../core/validation.js';
 import { upsertRecord, deleteRecord } from '../core/actions.js';
 import { openTripDialog } from './tripDialog.js';
@@ -64,7 +64,7 @@ export function renderHistory(ctx) {
       : v.mode === 'RANGE' ? `${md(v.from)} ~ ${md(v.to)}` : '全部記錄';
   const move = (d) => () => { Object.assign(v, addMonths(v.y, v.m, d)); ctx.render(); };
 
-  return h('div', { class: 'stack history' },
+  const root = h('div', { class: 'stack history' },
     appBar('歷史記錄',
       h('button', { class: 'icon-btn', type: 'button', title: allExpanded ? '全部收合' : '全部展開',
         onclick: () => { v.expanded = allExpanded ? new Set() : new Set(ids); ctx.render(); } }, allExpanded ? '⊟' : '⊞'),
@@ -76,6 +76,21 @@ export function renderHistory(ctx) {
     items.length ? items.map((r) => (r.placeholder ? placeholderCard(ctx, r) : dayCard(ctx, r, v)))
       : h('p', { class: 'muted center' }, '查無符合條件的記錄'),
     h('button', { class: 'fab', type: 'button', 'aria-label': '新增記錄', onclick: () => openRecordEditor(ctx, null) }, '＋'));
+  // 左右滑動切換月份（只在「按計酬月份查找」時；和 Android 一樣）
+  if (v.mode === 'MONTH') {
+    let sx = 0, sy = 0, tracking = false;
+    root.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) { tracking = false; return; }
+      tracking = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+    }, { passive: true });
+    root.addEventListener('touchend', (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) move(dx > 0 ? -1 : 1)();
+    }, { passive: true });
+  }
+  return root;
 }
 
 /** 沒有紀錄的日子：淡綠色日期＋「＋」，點了直接新增那一天 */
@@ -98,7 +113,8 @@ function dayCard(ctx, r, v) {
   const expanded = v.expanded.has(r.id);
   const total = recordTripCount(r);
   const mins = workMinutes(r);
-  const avg = total > 0 ? Math.floor(mins / total) : 0;
+  const wt = weightedTrips([r]); // 平均每趟＝工時÷加權車趟（1.4.6 起）
+  const avg = wt > 0 ? Math.floor(mins / wt) : 0;
   const avgCls = avg > 199 ? 'error-text b' : avg >= 1 && avg < 160 ? 'good b' : 'muted';
   const statusTexts = [spec ? `特休 ${fmtNum(r.specialLeaveHours)}h` : null, official ? '其它' : null, off ? '輪空' : null].filter(Boolean);
   const overnight = r.isNextDay || (r.startTime != null && r.endTime != null && r.endTime < r.startTime);

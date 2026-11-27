@@ -157,6 +157,7 @@ textarea.input { min-height: 64px; }
   .stmt .warn { color: #c62828; font-size: 9pt; margin: 6px 0; }
   .stmt .r { text-align: right; }
   .stmt table.money { width: 60%; }
+  .stmt table.days td:nth-child(6) { white-space: nowrap; }
   .stmt tr.b td { font-weight: 700; border-top: 1px solid #888; }
   .stmt .net { font-size: 14pt; margin-top: 12px; }
   .stmt tr { break-inside: avoid; }
