@@ -2,7 +2,7 @@
 import { h, toast, openDialog, money, appBar, columnStepper, checkRow } from './dom.js';
 import { activeRecord, clockIn, clockOut, updateStatus, addTrip, updateTrip, deleteTrip } from '../core/actions.js';
 import { workMinutes } from '../core/shift.js';
-import { overtimeMultiplier, recordTripCount, fmtNum } from '../core/trips.js';
+import { overtimeMultiplier, recordTripCount, recordExtraBonus, fmtNum } from '../core/trips.js';
 import { fmtTime, fmtDuration, todayEpochDay, monthKey, ymdOf } from '../core/date.js';
 import { billingMonthOf, isBillingLastDay } from '../core/billing.js';
 import { effectiveSalary } from '../core/salary.js';
@@ -101,7 +101,7 @@ export function renderHome(ctx) {
   const total = r ? recordTripCount(r) : 0;
   const mins = r ? workMinutes(r) : 0;
   const avg = total > 0 && r?.startTime != null ? Math.floor(mins / total) : null;
-  const bonus = Math.trunc(total * sal.tripBonusRate) + (r?.nightShiftCount || 0) * sal.nightShiftBonusRate;
+  const bonus = Math.trunc(total * sal.tripBonusRate) + (r ? recordExtraBonus(r) : 0) + (r?.nightShiftCount || 0) * sal.nightShiftBonusRate;
   const line = (a, b) => h('div', { class: 'row-between line' }, h('span', {}, a), h('b', {}, b));
   const summary = h('section', { class: 'card bg-tertiary-soft' },
     h('div', { class: 'title-md b' }, '今日統計'), h('hr'),

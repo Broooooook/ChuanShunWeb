@@ -2,9 +2,9 @@
 import { h, openDialog, comboField, rowStepper, checkRow, toast, optionColor } from './dom.js';
 import { uuid } from '../core/backup.js';
 import { rememberedTripCount } from '../core/actions.js';
-import { fmtNum } from '../core/trips.js';
+import { fmtNum, tripCountLabel } from '../core/trips.js';
 
-export const AREAS = [['北部 (1)', 1], ['林口 (1.5)', 1.5], ['中部 (2)', 2], ['南部 (3)', 3]];
+export const AREAS = [['北部 (1)', 1], ['林口 (1+200)', 1.5], ['中部 (2)', 2], ['南部 (3)', 3]];
 const names = (list) => [...(list || [])].sort((a, b) => a.order - b.order).map((o) => o.name);
 
 export function addOption(state, key, name) {
@@ -81,7 +81,7 @@ export function tripItem(state, t, index, onClick) {
   return h('button', { class: 'trip-item', type: 'button', onclick: onClick },
     h('div', { class: 'row-between' },
       h('span', { class: 'trip-dest', style: { color: destColor } }, `${index + 1}. ${t.destination}`),
-      h('span', { class: 'trip-num' }, fmtNum(t.tripCount || 0),
+      h('span', { class: 'trip-num' }, tripCountLabel(t),
         t.specialCount || t.overtimeCount ? h('span', { class: 'badges' },
           t.specialCount ? h('span', { class: 'badge sp' }, `+特${t.specialCount}`) : null,
           t.overtimeCount ? h('span', { class: 'badge ot' }, `+超${t.overtimeCount}`) : null) : null)),

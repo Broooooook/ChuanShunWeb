@@ -222,3 +222,17 @@ test('billing: 計酬月最後一天（月底提醒）', () => {
   assert.equal(B.isBillingLastDay(D(2026, 11, 26), {}, 26), false);
   assert.equal(B.isBillingLastDay(D(2026, 11, 30), {}, 1), true);
 });
+
+test('林口區＝1 趟＋200，加班日 200 也乘倍數', () => {
+  const lk = { destination: 'L', acidType: 'H', tripCount: 1.5, specialCount: 0, overtimeCount: 0 };
+  const r1 = { trips: [lk] };
+  assert.equal(T.recordTripCount(r1), 1);
+  assert.equal(T.recordExtraBonus(r1), 200);
+  assert.equal(T.tripCountLabel(lk), '1+200');
+  const r2 = { is2xOvertime: true, trips: [{ ...lk, specialCount: 1 }] };
+  assert.equal(T.recordTripCount(r2), 4);
+  assert.equal(T.recordExtraBonus(r2), 400);
+  const sum = Sal.monthSummary([r1, r2], { tripBonusRate: 400, nightShiftBonusRate: 300 });
+  assert.equal(sum.trips, 5);
+  assert.equal(sum.tripBonus, 5 * 400 + 600);
+});

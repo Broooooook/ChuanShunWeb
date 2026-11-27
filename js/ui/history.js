@@ -3,7 +3,7 @@ import { h, openDialog, toast, appBar, checkRow, columnStepper, timeInput, optio
 import { billingRange, billingRangeStr, billingMonthOf } from '../core/billing.js';
 import { addMonths, fmtTime, fmtDuration, todayEpochDay, toDateInput, fromDateInput, parseTimeInput, ymdOf } from '../core/date.js';
 import { workMinutes, isDraft, isLateStart } from '../core/shift.js';
-import { recordTripCount, fmtNum } from '../core/trips.js';
+import { recordTripCount, fmtNum, tripCountLabel } from '../core/trips.js';
 import { check } from '../core/validation.js';
 import { upsertRecord, deleteRecord } from '../core/actions.js';
 import { openTripDialog } from './tripDialog.js';
@@ -138,7 +138,7 @@ function dayCard(ctx, r, v) {
       card.append(h('hr'), ...r.trips.map((t, i) => h('div', { class: 'exp-trip' },
         h('div', { class: 'row-between' },
           h('span', { class: 'b small', style: { color: optionColor(ctx.state, 'destinations', t.destination, 'var(--primary)') } }, `${i + 1}. ${t.destination}`),
-          h('span', { class: 'right' }, h('b', {}, fmtNum(t.tripCount || 0)),
+          h('span', { class: 'right' }, h('b', {}, tripCountLabel(t)),
             t.specialCount ? h('span', { class: 'badge sp' }, `+特${t.specialCount}`) : null,
             t.overtimeCount ? h('span', { class: 'badge ot' }, `+超${t.overtimeCount}`) : null)),
         h('div', { class: 'trip-meta tiny-text' },
@@ -200,7 +200,7 @@ export function openRecordEditor(ctx, rec, presetDate = null) {
     onclick: () => openTripDialog(ctx, { initial: t, onSave: (nt) => { r.trips[i] = nt; drawTrips(); }, onDelete: () => { r.trips.splice(i, 1); drawTrips(); } }),
   },
     h('div', { class: 'grow' }, h('div', { class: 'small b' }, `${i + 1}. ${t.destination}`), h('div', { class: 'tiny-text muted' }, `${t.acidType} / ${t.driverName}`)),
-    h('span', { class: 'small b' }, fmtNum(t.tripCount || 0)),
+    h('span', { class: 'small b' }, tripCountLabel(t)),
     t.specialCount ? h('span', { class: 'tiny-text error-text' }, ` +特${t.specialCount}`) : null,
     t.overtimeCount ? h('span', { class: 'tiny-text tertiary-text' }, ` +超${t.overtimeCount}`) : null,
     h('button', { class: 'icon-btn tiny error-text', type: 'button', title: '移除', onclick: (e) => { e.stopPropagation(); r.trips.splice(i, 1); drawTrips(); } }, '✕')))

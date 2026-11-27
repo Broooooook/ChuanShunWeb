@@ -1,5 +1,5 @@
 // 薪資：月度設定（monthKey 之前最近的一筆生效，否則用全域設定）
-import { recordTripCount } from './trips.js';
+import { recordTripCount, recordExtraBonus } from './trips.js';
 
 export const SALARY_FIELDS = [
   'baseSalary', 'foodAllowance', 'mealAllowance', 'regionAllowance', 'attendanceBonus', 'carAllowance', 'otherAllowance',
@@ -29,7 +29,7 @@ export function effectiveSalary(mKey, monthlySalaries = [], globalSalary = empty
 export function monthSummary(records, sal) {
   const trips = records.reduce((a, r) => a + recordTripCount(r), 0);
   const night = records.reduce((a, r) => a + (r.nightShiftCount || 0), 0);
-  const tripBonus = Math.trunc(trips * sal.tripBonusRate);
+  const tripBonus = Math.trunc(trips * sal.tripBonusRate) + records.reduce((a, r) => a + recordExtraBonus(r), 0);
   const nightBonus = Math.trunc(night * sal.nightShiftBonusRate);
   const gross = INCOME.reduce((a, [k]) => a + (sal[k] || 0), 0) + tripBonus + nightBonus;
   const deduction = DEDUCTIONS.reduce((a, [k]) => a + (sal[k] || 0), 0);
