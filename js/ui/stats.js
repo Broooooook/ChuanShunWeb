@@ -11,7 +11,7 @@ import { saveFile } from './files.js';
 
 export function renderStats(ctx) {
   const v = ctx.view.stats ||= { mode: 'MONTH', ...billingMonthOf(todayEpochDay(), ctx.state.settings.billingStartDaysMap, ctx.state.settings.billingStartDay), year: ymdOf(todayEpochDay()).y };
-  const hidden = !!ctx.state.meta?.salaryHidden;
+  const hidden = ctx.state.meta?.salaryHidden !== false; // 預設不顯示本薪，按眼睛才顯示
   const head = appBar('統計',
     h('button', { class: 'icon-btn', type: 'button', title: hidden ? '顯示金額' : '隱藏金額', onclick: () => ctx.mutate((s) => { s.meta = { ...s.meta, salaryHidden: !hidden }; }) }, hidden ? '🙈' : '👁️'));
   const modeBar = h('div', { class: 'seg center-seg' },
@@ -69,10 +69,10 @@ function monthView(ctx, v, hidden) {
       h('div', { class: 'card-title' }, '當月摘要'),
       line('出勤班次', `${days} 班`), line('總工時', fmtDuration(mins)),
       ...countLines(sum.counts),
+      line('夜點', `${sum.night} 次`),
       line('平均每日工時', `${days ? (mins / 60 / days).toFixed(1) : '0.0'} 小時`),
       line('平均每趟工時', sum.trips > 0 ? fmtDuration(mins / sum.trips) : '00:00'),
-      line('平均每日車趟', `${days ? (sum.trips / days).toFixed(1) : '0.0'} 趟`),
-      line('夜點', `${sum.night} 次`), h('hr'),
+      line('平均每日車趟', `${days ? (sum.trips / days).toFixed(1) : '0.0'} 趟`), h('hr'),
       line(h('b', {}, '本月實領薪資'), h('b', { class: 'accent' }, m$(sum.net))), h('hr'),
       line('特休・本月已用', hoursFmt(monthUsed)), line('特休・今年已用', hoursFmt(yearUsed)),
       line('特休・剩餘', hoursFmt((sal.totalSpecialLeave || 0) - yearUsed)),
