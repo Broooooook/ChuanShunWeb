@@ -8,7 +8,7 @@ import { renderHistory } from './ui/history.js';
 import { renderStats } from './ui/stats.js';
 import { renderSettings, exportBackup, pickBackupFile } from './ui/settings.js';
 
-export const APP_VERSION = '1.4.6';
+export const APP_VERSION = '1.4.7';
 
 const TABS = [
   { id: 'home', label: '本日工作', icon: '🏠', render: renderHome },

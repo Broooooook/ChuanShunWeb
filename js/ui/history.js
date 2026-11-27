@@ -141,7 +141,7 @@ function dayCard(ctx, r, v) {
         r.is3xOvertime ? h('div', { class: 'tiny-text b error-text' }, '★ 3X 加班')
           : r.is2xOvertime ? h('div', { class: 'tiny-text b tertiary-text' }, '★ 2X 加班') : null),
       h('div', { class: 'right' },
-        official && total === 0 ? null : h('div', { class: 'small b' }, total ? areaCountsText(areaCounts([r])) : '0 趟'),
+        official && total === 0 ? null : h('div', { class: 'small b' }, `${fmtNum(wt)} 趟`),
         r.nightShiftCount > 0 ? h('div', { class: 'tiny-text b error-text' }, `夜點 ${r.nightShiftCount} 次`) : null)));
 
   if (expanded) {
