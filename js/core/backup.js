@@ -15,6 +15,11 @@ export function applyDefaultRates(settings) {
   // 依區域計算的車趟獎金單價（2026-11-27 起）。第一次升級時夜點沿用原本的設定
   if (!settings.tripRates) settings.tripRates = { ...DEFAULT_TRIP_RATES, night: settings.salaryInfo.nightShiftBonusRate || DEFAULT_TRIP_RATES.night };
   else settings.tripRates = { ...DEFAULT_TRIP_RATES, ...settings.tripRates };
+  // 1.4.4：廠內預設 350（之前是 0＝未定）；只補一次，之後使用者自己改成 0 也不會再被蓋掉
+  if (!settings.plantRateDefaulted) {
+    if (!settings.tripRates.plant) settings.tripRates.plant = DEFAULT_TRIP_RATES.plant;
+    settings.plantRateDefaulted = true;
+  }
   return settings;
 }
 

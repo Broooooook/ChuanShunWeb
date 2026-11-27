@@ -10,7 +10,7 @@ export const AREAS = [
   { key: 'plant', label: '廠內', code: 0.5 },
 ];
 /** 預設單價（使用者指定）。廠內未定，先算 0 元 */
-export const DEFAULT_TRIP_RATES = { north: 350, linkou: 550, central: 700, south: 1050, plant: 0, special: 350, overtime: 350, night: 300 };
+export const DEFAULT_TRIP_RATES = { north: 350, linkou: 550, central: 700, south: 1050, plant: 350, special: 350, overtime: 350, night: 300 };
 export const RATE_FIELDS = [...AREAS.map((a) => [a.key, a.label]), ['special', '特殊趟'], ['overtime', '超時趟'], ['night', '夜點']];
 export const tripRatesOf = (settings) => ({ ...DEFAULT_TRIP_RATES, ...(settings?.tripRates || {}) });
 
@@ -43,6 +43,20 @@ export function areaCounts(records) {
     if (a) c[a.key]++;
     c.special += t.specialCount || 0;
     c.overtime += t.overtimeCount || 0;
+  }
+  return c;
+}
+/** 統計用：各區域和特殊趟乘上 2X／3X 倍數後的次數（超時不乘）。例：中部 3 趟、其中 1 趟 3X → 5 次 */
+export function multipliedAreaCounts(records) {
+  const c = Object.fromEntries([...AREAS.map((a) => [a.key, 0]), ['special', 0], ['overtime', 0]]);
+  for (const r of records) {
+    const mult = overtimeMultiplier(r.is2xOvertime, r.is3xOvertime);
+    for (const t of r.trips || []) {
+      const a = areaOf(t);
+      if (a) c[a.key] += mult;
+      c.special += (t.specialCount || 0) * mult;
+      c.overtime += t.overtimeCount || 0;
+    }
   }
   return c;
 }

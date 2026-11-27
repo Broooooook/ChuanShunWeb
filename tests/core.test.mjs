@@ -248,3 +248,14 @@ test('加權車趟：(區域權重＋特殊)×倍數＋超時', () => {
   const r1 = { trips: [{ tripCount: 1 }, { tripCount: 0.5 }, { tripCount: 3 }] };
   assert.equal(T.weightedTrips([r2x, r3x, r1]), 7 + 4.5 + 1 + 1 + 3);
 });
+
+test('統計的區域次數乘 2X／3X（超時不乘），加權車趟＝次數×權重', () => {
+  const recs = [
+    { trips: [{ tripCount: 2 }, { tripCount: 2 }] },
+    { is3xOvertime: true, trips: [{ tripCount: 2, overtimeCount: 1 }] },
+  ];
+  const c = T.multipliedAreaCounts(recs);
+  assert.equal(c.central, 5);
+  assert.equal(c.overtime, 1);
+  assert.equal(T.weightedTrips(recs), 5 * 2 + 1);
+});

@@ -3,7 +3,7 @@ import { h, openDialog, promptDialog, money, toast, appBar } from './dom.js';
 import { billingRange, billingRangeStr, billingMonthOf } from '../core/billing.js';
 import { addMonths, monthKey, todayEpochDay, fmtDuration, ymdOf, fmtDate, weekdayLabel } from '../core/date.js';
 import { workMinutes, isDraft, splitToDaySegments } from '../core/shift.js';
-import { recordTripCount, aggregateBy, fmtNum, areaCounts, AREAS, tripRatesOf, weightedTrips } from '../core/trips.js';
+import { recordTripCount, aggregateBy, fmtNum, areaCounts, AREAS, tripRatesOf, weightedTrips, multipliedAreaCounts } from '../core/trips.js';
 import { effectiveSalary, monthSummary, INCOME, DEDUCTIONS, SALARY_FIELDS } from '../core/salary.js';
 import * as Law from '../core/labor.js';
 import { buildStatement, buildLawSection, statementXlsx, statementHtml } from '../core/statement.js';
@@ -68,7 +68,7 @@ function monthView(ctx, v, hidden) {
     h('section', { class: 'card' },
       h('div', { class: 'card-title' }, '當月摘要'),
       line('出勤班次', `${days} 班`), line('總工時', fmtDuration(mins)),
-      ...countLines(sum.counts),
+      ...countLines(multipliedAreaCounts(recs)),
       line('夜點', `${sum.night} 次`),
       line(h('b', {}, '加權車趟'), h('b', {}, `${fmtNum(weightedTrips(recs))} 趟`)),
       line('平均每日工時', `${days ? (mins / 60 / days).toFixed(1) : '0.0'} 小時`),
@@ -251,7 +251,7 @@ function yearView(ctx, v, hidden) {
     h('section', { class: 'card' },
       h('div', { class: 'card-title' }, '年度摘要'),
       line('總出勤班次', `${days} 班`), line('總工時', fmtDuration(mins)),
-      ...countLines(areaCounts(recs)),
+      ...countLines(multipliedAreaCounts(recs)),
       line('總夜點', `${recs.reduce((a, r) => a + (r.nightShiftCount || 0), 0)} 次`),
       line(h('b', {}, '加權車趟'), h('b', {}, `${fmtNum(weightedTrips(recs))} 趟`)),
       line('平均每日工時', `${days ? (mins / 60 / days).toFixed(1) : '0.0'} 小時`),
