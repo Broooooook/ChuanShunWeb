@@ -241,7 +241,10 @@ test('區域單價：舊代碼對到新區域，3X 乘 3，次數統計', () => 
   assert.equal(T.recordTripBonus({ trips: [t(0)] }, R), 0); // 沒有區域
 });
 
-test('加權車趟：北部1 林口1.5 中部2 南部3 廠內1 特殊1 超時1', () => {
-  assert.equal(T.weightedTrips({ north: 24, linkou: 3, central: 2, special: 8, overtime: 12 }), 52.5);
-  assert.equal(T.weightedTrips({ south: 1, plant: 1 }), 4);
+test('加權車趟：(區域權重＋特殊)×倍數＋超時', () => {
+  const r2x = { is2xOvertime: true, trips: [{ tripCount: 2, specialCount: 1, overtimeCount: 1 }] };
+  assert.equal(T.weightedTrips([r2x]), 7);
+  const r3x = { is3xOvertime: true, trips: [{ tripCount: 1.5 }] };
+  const r1 = { trips: [{ tripCount: 1 }, { tripCount: 0.5 }, { tripCount: 3 }] };
+  assert.equal(T.weightedTrips([r2x, r3x, r1]), 7 + 4.5 + 1 + 1 + 3);
 });

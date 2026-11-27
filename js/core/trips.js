@@ -47,12 +47,21 @@ export function areaCounts(records) {
   return c;
 }
 /** 例：「北部 3・中部 1・特殊 1」；都沒有時回傳空字串 */
-/** 加權車趟的權重：北部 1、林口 1.5、中部 2、南部 3、廠內 1、特殊 1、超時 1（不乘 2X／3X） */
+/** 加權車趟的權重：北部 1、林口 1.5、中部 2、南部 3、廠內 1、特殊 1、超時 1 */
 export const TRIP_WEIGHTS = { north: 1, linkou: 1.5, central: 2, south: 3, plant: 1, special: 1, overtime: 1 };
 
-/** 加權車趟（例：北部 24、林口 3、中部 2、特殊 8、超時 12 → 52.5） */
-export function weightedTrips(c) {
-  return Object.entries(TRIP_WEIGHTS).reduce((a, [k, w]) => a + (c[k] || 0) * w, 0);
+/** 一趟的加權車趟：(區域權重＋特殊)×2X/3X 倍數＋超時（超時不乘倍數） */
+export function tripWeighted(t, mult) {
+  const a = areaOf(t);
+  return ((a ? TRIP_WEIGHTS[a.key] : 0) + (t.specialCount || 0)) * mult + (t.overtimeCount || 0);
+}
+
+/** 多筆紀錄的加權車趟（例：中部 1＋特殊 1＋超時 1，2X → (2+1)×2+1 = 7） */
+export function weightedTrips(records) {
+  return records.reduce((sum, r) => {
+    const mult = overtimeMultiplier(r.is2xOvertime, r.is3xOvertime);
+    return sum + (r.trips || []).reduce((a, t) => a + tripWeighted(t, mult), 0);
+  }, 0);
 }
 
 export function areaCountsText(c) {
